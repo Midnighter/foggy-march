@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 
@@ -135,16 +134,4 @@ def walks(graph, num_walkers, time_points, steps, weight=None, num_cpu=1):
     std_fluxes = numpy.sqrt(std_fluxes)
     sys.stdout.write("\n")
     return (mean_fluxes, std_fluxes)
-
-def main(argv):
-    net = nx.scale_free_graph(1E01)
-    print walks(net, UniformInterval(1E02, 20), 1E02, 1E03)
-
-
-if __name__ == "__main__":
-    argc = len(sys.argv)
-    if argc < 2 or argc > 3:
-        print("Usage:\npython %s" % sys.argv[0])
-        sys.exit(2)
-    main(sys.argv[1:])
 

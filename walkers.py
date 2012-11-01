@@ -18,11 +18,13 @@ Random Walkers on Networks
 
 
 import sys
-import itertools
+#import itertools
 import bisect
 import multiprocessing
 import numpy
 import networkx as nx
+
+from Queue import Empty
 
 
 class UniformInterval(object):
@@ -77,8 +79,13 @@ def uniform_random_walk((adj, node, steps)):
     return path
 
 def prepare_uniform_walk_adjacency(graph, weight=None):
+    nodes = sorted(graph.nodes())
+    if len(nodes) < 2:
+        raise nx.NetworkXError("network is too small")
     adj = dict()
-    for node in graph.nodes_iter():
+    indices = dict()
+    for (i, node) in enumerate(nodes):
+        indices[node] = i
         neighbours = list()
         probabilities = list()
         if graph.out_degree(node) == 0:
@@ -92,34 +99,31 @@ def prepare_uniform_walk_adjacency(graph, weight=None):
         # prob is now the sum of all edge weights, normalise to unity
         probabilities /= prob
         adj[node] = (neighbours, probabilities)
-    return adj
+    return (adj, indices)
 
-def walks(graph, num_walkers, time_points, steps, weight=None, num_cpu=1):
+def walks_pool(adjacency, indices, num_walkers, time_points, steps, num_cpu=1):
     """
     Start a number of random walkers on the given network for given time points.
     """
-    nodes = sorted(graph.nodes())
-    length = len(nodes)
-    if length < 2:
-        raise nx.NetworkXError("network is too small")
     time_points = int(time_points)
     steps = int(steps)
     num_cpu = int(num_cpu)
+    nodes = sorted(indices.keys())
+    length = len(nodes)
     rand_int = numpy.random.randint
-    adjacency = prepare_uniform_walk_adjacency(graph, weight)
     # compute a running mean and sd as per:
     # http://en.wikipedia.org/wiki/Standard_deviation#Rapid_calculation_methods
     visits = numpy.zeros(length, dtype="int32")
     mean_fluxes = numpy.zeros(length)
     subtraction = numpy.zeros(length)
     std_fluxes = numpy.zeros(length)
-    indices = dict(itertools.izip(nodes, itertools.count()))
     pool = multiprocessing.Pool(num_cpu)
     for time in xrange(1, time_points + 1):
         sys.stdout.write("\r{0:.2%} completed".format(
             time / float(time_points)))
         sys.stdout.flush()
         visits.fill(0)
+        # a large number of walkers will probably exceed available memory
         visited = pool.imap(uniform_random_walk,
                 [(adjacency, nodes[rand_int(length)], steps)\
                 for i in xrange(num_walkers())])
@@ -133,5 +137,80 @@ def walks(graph, num_walkers, time_points, steps, weight=None, num_cpu=1):
     std_fluxes /= time - 1
     std_fluxes = numpy.sqrt(std_fluxes)
     sys.stdout.write("\n")
+    return (mean_fluxes, std_fluxes)
+
+def uniform_random_walk_worker(in_queue, out_queue, adjacency):
+    """
+    Perform a single random walk on a network with a uniform probability of a
+    next step.
+
+    Arguments
+    ---------
+    """
+    smpl = numpy.random.random_sample
+    choose = bisect.bisect_left
+    for (node, steps) in iter(in_queue.get, "STOP"):
+        path = [node]
+        for s in xrange(steps):
+            (nbrs, probs) = adjacency.get(node, (False, False))
+            if not nbrs:
+                out_queue.put(path)
+                continue
+            draw = smpl()
+            # the nbrs list and probs list correspond to each other
+            # we use a binary search to find the index to the left of the
+            # probability and take that node
+            node = nbrs[choose(probs, draw)]
+            path.append(node)
+        out_queue.put(path)
+
+def walks_queue(adjacency, indices, num_walkers, time_points, steps, num_cpu=1):
+    """
+    Start a number of random walkers on the given network for given time points.
+    """
+    time_points = int(time_points)
+    steps = int(steps)
+    num_cpu = int(num_cpu)
+    nodes = sorted(indices.keys())
+    length = len(nodes)
+    rand_int = numpy.random.randint
+    # compute a running mean and sd as per:
+    # http://en.wikipedia.org/wiki/Standard_deviation#Rapid_calculation_methods
+    visits = numpy.zeros(length, dtype="int32")
+    mean_fluxes = numpy.zeros(length)
+    subtraction = numpy.zeros(length)
+    std_fluxes = numpy.zeros(length)
+    # worker queues
+    in_queue = multiprocessing.Queue()
+    out_queue = multiprocessing.Queue()
+    # start processes
+    workers = [multiprocessing.Process(target=uniform_random_walk_worker,
+            args=(in_queue, out_queue, adjacency))\
+            for i in range(num_cpu)]
+    for proc in workers:
+        proc.daemon = True
+        proc.start()
+    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.flush()
+    for time in xrange(1, time_points + 1):
+        visits.fill(0)
+        curr_num = num_walkers()
+        for i in xrange(curr_num):
+            in_queue.put((nodes[rand_int(length)], steps), block=False)
+        for i in xrange(curr_num):
+            path = out_queue.get()
+            for node in path:
+                visits[indices[node]] += 1
+        # compute running average and variation
+        subtraction = visits - mean_fluxes
+        mean_fluxes += subtraction / time
+        std_fluxes += subtraction * (visits - mean_fluxes)
+        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        sys.stdout.flush()
+    std_fluxes /= time - 1
+    std_fluxes = numpy.sqrt(std_fluxes)
+    sys.stdout.write("\n")
+    for proc in workers:
+        in_queue.put("STOP")
     return (mean_fluxes, std_fluxes)
 

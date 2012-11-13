@@ -76,12 +76,12 @@ def prepare_uniform_walk(graph, weight=None):
         prob = 0.0
         probabilities.append(numpy.zeros(out_deg, dtype=float))
         neighbours.append(numpy.zeros(out_deg, dtype=int))
-        for (j, (u, v, data)) in enumerate(graph.out_edges_iter(data=True)):
+        for (j, (u, v, data)) in enumerate(graph.out_edges_iter(node, data=True)):
             neighbours[i][j] = indices[v]
             prob += data.get(weight, 1.0)
             probabilities[i][j] = prob
         # prob is now the sum of all edge weights, normalise to unity
-        probabilities /= prob
+        probabilities[i] /= prob
     return (probabilities, neighbours)
 
 def uniform_random_walker(in_queue, out_queue, probabilities, neighbours):
@@ -98,9 +98,8 @@ def uniform_random_walker(in_queue, out_queue, probabilities, neighbours):
         path = [node]
         for s in xrange(steps):
             nbrs = neighbours[node]
-            if not nbrs:
-                out_queue.put(path)
-                continue
+            if len(nbrs) == 0:
+                break
             draw = smpl()
             # the nbrs list and probs list correspond to each other
             # we use a binary search to find the index to the left of the
@@ -109,7 +108,7 @@ def uniform_random_walker(in_queue, out_queue, probabilities, neighbours):
             path.append(node)
         out_queue.put(path)
 
-def queued_march(neighbours, probabilities, indices, num_walkers, time_points,
+def queued_march(neighbours, probabilities, sources, num_walkers, time_points,
         steps, num_cpu=1):
     """
     Start a number of random walkers on the given network for given time points.
@@ -117,15 +116,14 @@ def queued_march(neighbours, probabilities, indices, num_walkers, time_points,
     time_points = int(time_points)
     steps = int(steps)
     num_cpu = int(num_cpu)
-    nodes = sorted(indices.keys())
-    length = len(nodes)
+    length = len(sources)
     rand_int = numpy.random.randint
     # compute a running mean and sd as per:
     # http://en.wikipedia.org/wiki/Standard_deviation#Rapid_calculation_methods
-    visits = numpy.zeros(length, dtype="int32")
-    mean_fluxes = numpy.zeros(length)
-    subtraction = numpy.zeros(length)
-    std_fluxes = numpy.zeros(length)
+    visits = numpy.zeros(len(neighbours), dtype="int32")
+    mean_fluxes = numpy.zeros(len(neighbours))
+    subtraction = numpy.zeros(len(neighbours))
+    std_fluxes = numpy.zeros(len(neighbours))
     # worker queues
     in_queue = multiprocessing.Queue()
     out_queue = multiprocessing.Queue()
@@ -142,11 +140,11 @@ def queued_march(neighbours, probabilities, indices, num_walkers, time_points,
         visits.fill(0)
         curr_num = num_walkers()
         for i in xrange(curr_num):
-            in_queue.put((nodes[rand_int(length)], steps), block=False)
+            in_queue.put((sources[rand_int(length)], steps), block=False)
         for i in xrange(curr_num):
             path = out_queue.get()
             for node in path:
-                visits[indices[node]] += 1
+                visits[node] += 1
         # compute running average and variation
         subtraction = visits - mean_fluxes
         mean_fluxes += subtraction / time

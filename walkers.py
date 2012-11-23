@@ -51,11 +51,14 @@ class UniformInterval(object):
 
 def prepare_uniform_walk(graph, weight=None):
     """
-    Prepare data structures for a directed uniform random walk.
+    Prepare data structures for a uniform random walk.
+
+    Works for undirected as well as directed graphs. For multi-graphs simply
+    provide a suitable edge weight.
 
     Arguments
     ---------
-    graph: nx.DiGraph
+    graph: nx.(Di)Graph
         The underlying network.
     weight: hashable
         The keyword for edge data that should be used to weigh the propagation
@@ -68,7 +71,8 @@ def prepare_uniform_walk(graph, weight=None):
     probabilities = list()
     neighbours = list()
     for (i, node) in enumerate(nodes):
-        out_deg = graph.out_degree(node)
+        adj = graph[node]
+        out_deg = len(adj)
         if out_deg == 0:
             probabilities.append([])
             neighbours.append([])
@@ -76,8 +80,8 @@ def prepare_uniform_walk(graph, weight=None):
         prob = 0.0
         probabilities.append(numpy.zeros(out_deg, dtype=float))
         neighbours.append(numpy.zeros(out_deg, dtype=int))
-        for (j, (u, v, data)) in enumerate(graph.out_edges_iter(node, data=True)):
-            neighbours[i][j] = indices[v]
+        for (j, (nhbr, data)) in enumerate(adj.iteritems()):
+            neighbours[i][j] = indices[nhbr]
             prob += data.get(weight, 1.0)
             probabilities[i][j] = prob
         # prob is now the sum of all edge weights, normalise to unity

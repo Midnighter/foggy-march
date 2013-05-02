@@ -11,9 +11,11 @@ Random Walkers on Networks
 :Date:
     2012-10-23
 :Copyright:
-    Copyright(c) 2012 Jacobs University of Bremen. All rights reserved.
+    Copyright |c| 2013, Jacobs University Bremen gGmbH, all rights reserved.
 :File:
     walkers.py
+
+.. |c| unicode:: U+A9
 """
 
 

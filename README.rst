@@ -30,3 +30,9 @@ Authors
 
 * Beber, Moritz Emanuel
 
+References
+----------
+.. [1] Eisler, Z., and J. Kertész.
+       “Random Walks on Complex Networks with Inhomogeneous Impact.”
+       *Phys. Rev. E* 71, no. 5 (May 2005): 057104. doi:10.1103/PhysRevE.71.057104.
+

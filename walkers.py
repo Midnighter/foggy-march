@@ -249,6 +249,8 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
     for time in xrange(1, time_points + 1):
         visits.fill(0)
         curr_num = num_walkers()
+        if curr_num == 0:
+            continue
         if view:
             size = max((curr_num - 1) // (num_krnl * 2), 1)
             results = lb_view.map(uniform_random_walker,

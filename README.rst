@@ -1,12 +1,12 @@
-=============
-Random Walker
-=============
+===========
+Foggy March
+===========
 
 
 Outline
 -------
 
-A package for different types of random walkers on any directed or undirected network.
+A module for different types of random walks on any directed or undirected network.
 
 Requirements
 ------------

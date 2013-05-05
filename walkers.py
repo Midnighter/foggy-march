@@ -250,6 +250,11 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
         visits.fill(0)
         curr_num = num_walkers()
         if curr_num == 0:
+            subtraction = -mean_fluxes
+            mean_fluxes += subtraction / time
+            std_fluxes += subtraction * (-mean_fluxes)
+            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.flush()
             continue
         if view:
             size = max((curr_num - 1) // (num_krnl * 2), 1)

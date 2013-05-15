@@ -275,7 +275,7 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     std_fluxes /= float(time - 1)
-    std_fluxes = numpy.sqrt(std_fluxes)
+    numpy.sqrt(std_fluxes, std_fluxes)
     sys.stdout.write("\n")
     return (mean_fluxes, std_fluxes)
 

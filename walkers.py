@@ -31,7 +31,8 @@ from IPython.parallel import interactive, require, LoadBalancedView
 class UniformInterval(object):
     """
     Instances of UniformInterval can be called without argument to yield a
-    natural number from a uniform random distribution on a pre-specified interval.
+    natural number from a uniform random distribution on a pre-specified
+    interval (cut off at zero).
     """
 
     def __init__(self, mid_point, variation=0, **kw_args):
@@ -54,6 +55,10 @@ class UniformInterval(object):
         self.variation = int(variation)
         assert self.variation >= 0
         self.mini = self.mid_point - self.variation
+        # This definition leads to a potential accumulation of zero values and
+        # thus a non-uniform probability density function.
+        # A uniform PDF over the interval is guaranteed by:
+#        self.mini = max(self.mid_point - self.variation, 0)
         self.maxi = self.mid_point + self.variation
 
     def __call__(self):
@@ -112,14 +117,14 @@ class DegreeDependentValue(object):
         graph: nx.(Di)Graph
             The graph from which to obtain the degree of the nodes.
         indices: dict
-            A map from nodes to their integer indeces.
+            A map from nodes to their integer indeces [0; N - 1].
         weight: str (optional)
             The keyword for the edge-weight attribute.
         mu: float (optional)
             The exponent of the value.
         """
         super(DegreeDependentValue, self).__init__(**kw_args)
-        self.values = dict()
+        self.values = numpy.zeros(len(graph), dtype=float)
         mu = float(mu)
         for (node, deg) in graph.degree_iter(weight=weight):
             self.values[indices[node]] = numpy.power(float(deg), mu)
@@ -223,10 +228,11 @@ def uniform_random_walker(node):
         path.append(node)
     return path
 
-def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
+def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
         steps, assessor=ConstantValue(), lb_view=None):
     """
-    Start a number of random walkers on the given network for given time points.
+    Start a number of random walkers on the given network for a number of time points
+    and compute running mean and standard deviation of the (scaled) visits at each node.
     """
     time_points = int(time_points)
     steps = int(steps)
@@ -278,4 +284,53 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
     numpy.sqrt(std_fluxes, std_fluxes)
     sys.stdout.write("\n")
     return (mean_fluxes, std_fluxes)
+
+def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
+        steps, assessor=ConstantValue(), lb_view=None):
+    """
+    Start a number of random walkers on the given network for a number of time points.
+
+    Returns
+    -------
+    An array of dimensions number of nodes N x number of time points T.
+    """
+    time_points = int(time_points)
+    steps = int(steps)
+    length = len(sources)
+    rand_int = numpy.random.randint
+    sys.stdout.write("allocating memory... ")
+    visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
+    sys.stdout.write("done\n")
+    sys.stdout.flush()
+    # make available on remote kernels
+    d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
+        steps=steps), block=True)
+    view = isinstance(lb_view, LoadBalancedView)
+    if view:
+        num_krnl = len(lb_view)
+    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.flush()
+    for time in xrange(time_points):
+        curr_visits = visits[:, time]
+        curr_num = num_walkers()
+        if curr_num == 0:
+            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.flush()
+            continue
+        if view:
+            size = max((curr_num - 1) // (num_krnl * 2), 1)
+            results = lb_view.map(uniform_random_walker,
+                    [sources[rand_int(length)] for i in xrange(curr_num)],
+                    block=False, ordered=False, chunksize=size)
+        else:
+            results = d_view.map(uniform_random_walker,
+                    [sources[rand_int(length)] for i in xrange(curr_num)],
+                    block=False)
+        for path in results:
+            for node in path:
+                curr_visits[node] += assessor(node)
+        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        sys.stdout.flush()
+    sys.stdout.write("\n")
+    return visits
 

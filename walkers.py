@@ -59,6 +59,7 @@ class UniformInterval(object):
         # thus a non-uniform probability density function.
         # A uniform PDF over the interval is guaranteed by:
 #        self.mini = max(self.mid_point - self.variation, 0)
+        # but with a changed mean and variance
         self.maxi = self.mid_point + self.variation
 
     def __call__(self):
@@ -229,10 +230,16 @@ def uniform_random_walker(node):
     return path
 
 def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
-        steps, assessor=ConstantValue(), lb_view=None):
+        steps, assessor=ConstantValue(), lb_view=None, seed=None):
     """
     Start a number of random walkers on the given network for a number of time points
     and compute running mean and standard deviation of the (scaled) visits at each node.
+
+    Warning
+    -------
+    The use of a seed for reproducible results can only work with a
+    ``DirectView``. Use of a ``LoadBalancedView`` will assign jobs to remote
+    kernels in unknown order.
     """
     time_points = int(time_points)
     steps = int(steps)
@@ -247,6 +254,14 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
     # make available on remote kernels
     d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
         steps=steps), block=True)
+    # assign different but deterministic seeds to all remote engines
+    numpy.random.seed(seed)
+    remote_seeds = set()
+    while len(remote_seeds) < len(d_view):
+        remote_seeds.add(rand_int(sys.maxint))
+    d_view.scatter("seed", remote_seeds, block=True)
+    d_view.execute("import numpy", block=True)
+    d_view.execute("numpy.random.seed(seed[0])", block=True)
     view = isinstance(lb_view, LoadBalancedView)
     if view:
         num_krnl = len(lb_view)
@@ -286,25 +301,37 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
     return (mean_fluxes, std_fluxes)
 
 def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
-        steps, assessor=ConstantValue(), lb_view=None):
+        steps, assessor=ConstantValue(), lb_view=None, seed=None):
     """
     Start a number of random walkers on the given network for a number of time points.
 
     Returns
     -------
     An array of dimensions number of nodes N x number of time points T.
+
+    Warning
+    -------
+    The use of a seed for reproducible results can only work with a
+    ``DirectView``. Use of a ``LoadBalancedView`` will assign jobs to remote
+    kernels in unknown order.
     """
     time_points = int(time_points)
     steps = int(steps)
     length = len(sources)
     rand_int = numpy.random.randint
-    sys.stdout.write("allocating memory... ")
     visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
-    sys.stdout.write("done\n")
     sys.stdout.flush()
     # make available on remote kernels
     d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
         steps=steps), block=True)
+    # assign different but deterministic seeds to all remote engines
+    numpy.random.seed(seed)
+    remote_seeds = set()
+    while len(remote_seeds) < len(d_view):
+        remote_seeds.add(rand_int(sys.maxint))
+    d_view.scatter("seed", remote_seeds, block=True)
+    d_view.execute("import numpy", block=True)
+    d_view.execute("numpy.random.seed(seed[0])", block=True)
     view = isinstance(lb_view, LoadBalancedView)
     if view:
         num_krnl = len(lb_view)
@@ -331,6 +358,39 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
                 curr_visits[node] += assessor(node)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
+    sys.stdout.write("\r{0:.2%} complete".format(1.0))
     sys.stdout.write("\n")
+    sys.stdout.flush()
     return visits
+
+def internal_dynamics_external_fluctuations(activity):
+    """
+    Assess the internal dynamics and external fluctuations of a complex system.
+
+    Parameters
+    ----------
+    activity: numpy.array
+        Two dimensional array, where the first dimension corresponds to system
+        elements and the second to observations of their activity.
+
+    Returns
+    -------
+    Two arrays for the standard deviation of the internal and external
+    fluctuations of components, respectively.
+
+    References
+    ----------
+    """
+    internal = numpy.zeros(activity.shape, dtype=float)
+    external = numpy.zeros(activity.shape, dtype=float)
+    sum_time = activity.sum(axis=1)
+    sum_elem = activity.sum(axis=0)
+    # equation (2)
+    fraction = sum_time / activity.sum()
+    # equation (3) & (4)
+    for i in xrange(activity.shape[0]):
+        for t in xrange(activity.shape[1]):
+            external[i, t] = fraction[i] * sum_elem[t]
+            internal[i, t] = activity[i, t] - external[i, t]
+    return (internal.std(axis=1), external.std(axis=1))
 

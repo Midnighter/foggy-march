@@ -40,8 +40,8 @@ class UniformInterval(object):
         At instantiation the mean of the interval and and the uniform variation
         around that mean are determined.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         mid_point: int
             The mean of the uniform random variable.
         variation: int (optional)
@@ -113,8 +113,8 @@ class DegreeDependentValue(object):
         Estimates the value of nodes based on their (weighted) degree and an
         exponent.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         graph: nx.(Di)Graph
             The graph from which to obtain the degree of the nodes.
         indices: dict
@@ -169,8 +169,8 @@ def prepare_uniform_walk(graph, weight=None):
     Works for undirected as well as directed graphs. For multi-graphs simply
     provide a suitable edge weight.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     graph: nx.(Di)Graph
         The underlying network.
     weight: hashable
@@ -208,8 +208,8 @@ def uniform_random_walker(node):
     Perform a single random walk on a network with a uniform probability of a
     next step.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     """
     # accessing globals `probabilities`, `neighbours`, and `steps that were pushed before
     local_probs = probabilities
@@ -230,10 +230,40 @@ def uniform_random_walker(node):
     return path
 
 def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
-        steps, assessor=ConstantValue(), lb_view=None, seed=None):
+        steps, assessor=ConstantValue(), transient=0, lb_view=None, seed=None):
     """
-    Start a number of random walkers on the given network for a number of time points
-    and compute running mean and standard deviation of the (scaled) visits at each node.
+    Start a number of random walks on the given network for a number of time points
+    and compute running mean and standard deviation of the visits at each node.
+
+    Parameters
+    ----------
+    d_view: DirectView
+        An IPython.parallel.DirectView instance.
+    neighbours: list of lists
+        Adjacency list structure as returned by prepare_uniform_walk.
+    probabilities: list of lists
+        Transition probabilities list structure as returned by
+        prepare_uniform_walk.
+    sources: list
+        List of valid starting node indices.
+    num_walkers: callable
+        A callable that returns an integer z >= 0.
+    time_points: int
+        Number of experiments to measure activity for.
+    steps: int
+        The maximum number of steps for each individual random walker.
+    assessor: callable (optional)
+        Called with the node index as argument, it should return the activity
+        value of a visit.
+    transient: int (optional)
+        Cut-off the first transient steps of each random walk.
+    lb_view: LoadBalancedView (optional)
+        An IPython.parallel.LoadBalancedView instance which may have performance
+        advantages over a DirectView.
+    seed: (optional)
+        A valid seed for numpy.random that makes runs deterministic in
+        combination with using only a DirectView.
+
 
     Warning
     -------
@@ -243,6 +273,7 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
     """
     time_points = int(time_points)
     steps = int(steps)
+    transient = int(transient)
     length = len(sources)
     rand_int = numpy.random.randint
     # compute a running mean and sd as per:
@@ -287,7 +318,7 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
                     [sources[rand_int(length)] for i in xrange(curr_num)],
                     block=False)
         for path in results:
-            for node in path:
+            for node in path[transient:]:
                 visits[node] += assessor(node)
         # compute running average and variation
         subtraction = visits - mean_fluxes
@@ -301,9 +332,39 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
     return (mean_fluxes, std_fluxes)
 
 def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
-        steps, assessor=ConstantValue(), lb_view=None, seed=None):
+        steps, assessor=ConstantValue(), transient=0, lb_view=None, seed=None):
     """
-    Start a number of random walkers on the given network for a number of time points.
+    Start a number of random walks on the given network for a number of time
+    points. Records the activity at visited nodes.
+
+    Parameters
+    ----------
+    d_view: DirectView
+        An IPython.parallel.DirectView instance.
+    neighbours: list of lists
+        Adjacency list structure as returned by prepare_uniform_walk.
+    probabilities: list of lists
+        Transition probabilities list structure as returned by
+        prepare_uniform_walk.
+    sources: list
+        List of valid starting node indices.
+    num_walkers: callable
+        A callable that returns an integer z >= 0.
+    time_points: int
+        Number of experiments to measure activity for.
+    steps: int
+        The maximum number of steps for each individual random walker.
+    assessor: callable (optional)
+        Called with the node index as argument, it should return the activity
+        value of a visit.
+    transient: int (optional)
+        Cut-off the first transient steps of each random walk.
+    lb_view: LoadBalancedView (optional)
+        An IPython.parallel.LoadBalancedView instance which may have performance
+        advantages over a DirectView.
+    seed: (optional)
+        A valid seed for numpy.random that makes runs deterministic in
+        combination with using only a DirectView.
 
     Returns
     -------
@@ -317,6 +378,7 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
     """
     time_points = int(time_points)
     steps = int(steps)
+    transient = int(transient)
     length = len(sources)
     rand_int = numpy.random.randint
     visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
@@ -354,7 +416,101 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
                     [sources[rand_int(length)] for i in xrange(curr_num)],
                     block=False)
         for path in results:
-            for node in path:
+            for node in path[transient:]:
+                curr_visits[node] += assessor(node)
+        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        sys.stdout.flush()
+    sys.stdout.write("\r{0:.2%} complete".format(1.0))
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+    return visits
+
+def parallel_march_with_capacity(d_view, neighbours, probabilities, sources, num_walkers, time_points,
+        steps, assessor=ConstantValue(), transient=0, lb_view=None, seed=None):
+    """
+    Start a number of random walks on the given network for a number of time
+    points. Records the activity at visited nodes.
+
+    Parameters
+    ----------
+    d_view: DirectView
+        An IPython.parallel.DirectView instance.
+    neighbours: list of lists
+        Adjacency list structure as returned by prepare_uniform_walk.
+    probabilities: list of lists
+        Transition probabilities list structure as returned by
+        prepare_uniform_walk.
+    sources: list
+        List of valid starting node indices.
+    num_walkers: callable
+        A callable that returns an integer z >= 0.
+    time_points: int
+        Number of experiments to measure activity for.
+    steps: int
+        The maximum number of steps for each individual random walker.
+    assessor: callable (optional)
+        Called with the node index as argument, it should return the activity
+        value of a visit.
+    transient: int (optional)
+        Cut-off the first transient steps of each random walk.
+    lb_view: LoadBalancedView (optional)
+        An IPython.parallel.LoadBalancedView instance which may have performance
+        advantages over a DirectView.
+    seed: (optional)
+        A valid seed for numpy.random that makes runs deterministic in
+        combination with using only a DirectView.
+
+    Returns
+    -------
+    An array of dimensions number of nodes N x number of time points T.
+
+    Warning
+    -------
+    The use of a seed for reproducible results can only work with a
+    ``DirectView``. Use of a ``LoadBalancedView`` will assign jobs to remote
+    kernels in unknown order.
+    """
+    time_points = int(time_points)
+    steps = int(steps)
+    transient = int(transient)
+    length = len(sources)
+    rand_int = numpy.random.randint
+    visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
+    sys.stdout.flush()
+    # make available on remote kernels
+    d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
+        steps=steps), block=True)
+    # assign different but deterministic seeds to all remote engines
+    numpy.random.seed(seed)
+    remote_seeds = set()
+    while len(remote_seeds) < len(d_view):
+        remote_seeds.add(rand_int(sys.maxint))
+    d_view.scatter("seed", remote_seeds, block=True)
+    d_view.execute("import numpy", block=True)
+    d_view.execute("numpy.random.seed(seed[0])", block=True)
+    view = isinstance(lb_view, LoadBalancedView)
+    if view:
+        num_krnl = len(lb_view)
+    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.flush()
+    for time in xrange(time_points):
+        curr_visits = visits[:, time]
+        curr_num = num_walkers()
+        if curr_num == 0:
+            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.flush()
+            continue
+        if view:
+            size = max((curr_num - 1) // (num_krnl * 2), 1)
+            results = lb_view.map(uniform_random_walker,
+                    [sources[rand_int(length)] for i in xrange(curr_num)],
+                    block=False, ordered=False, chunksize=size)
+        else:
+            results = d_view.map(uniform_random_walker,
+                    [sources[rand_int(length)] for i in xrange(curr_num)],
+                    block=False)
+        for path in results:
+            for node in path[transient:]:
                 curr_visits[node] += assessor(node)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()

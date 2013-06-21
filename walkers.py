@@ -229,6 +229,36 @@ def uniform_random_walker(node):
         path.append(node)
     return path
 
+@require(numpy, bisect)
+@interactive
+def limited_uniform_random_walker(node, max_steps=None):
+    """
+    Perform a single random walk on a network with a uniform probability of a
+    next step.
+
+    Parameters
+    ----------
+    """
+    # accessing globals `probabilities`, `neighbours`, and `steps` that were pushed before
+    local_probs = probabilities
+    local_nbrs = neighbours
+    if max_steps is None:
+        max_steps = steps
+    smpl = numpy.random.random_sample
+    choose = bisect.bisect_left
+    path = [node]
+    for s in xrange(max_steps):
+        nbrs = local_nbrs[node]
+        if len(nbrs) == 0:
+            break
+        draw = smpl()
+        # the nbrs list and probs list correspond to each other
+        # we use a binary search to find the index to the left of the
+        # probability and take that node
+        node = nbrs[choose(local_probs[node], draw)]
+        path.append(node)
+    return path
+
 def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
         steps, assessor=ConstantValue(), transient=0, lb_view=None, seed=None):
     """
@@ -425,8 +455,9 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
     sys.stdout.flush()
     return visits
 
-def parallel_march_with_capacity(d_view, neighbours, probabilities, sources, num_walkers, time_points,
-        steps, assessor=ConstantValue(), transient=0, lb_view=None, seed=None):
+def deletory_parallel_march_with_capacity(d_view, neighbours, probabilities, sources,
+        num_walkers, time_points, steps, capacity, assessor=ConstantValue(),
+        transient=0, lb_view=None, seed=None):
     """
     Start a number of random walks on the given network for a number of time
     points. Records the activity at visited nodes.
@@ -448,6 +479,8 @@ def parallel_march_with_capacity(d_view, neighbours, probabilities, sources, num
         Number of experiments to measure activity for.
     steps: int
         The maximum number of steps for each individual random walker.
+    capacity: list or dict
+        Contains maximum capacity of nodes at their respective index.
     assessor: callable (optional)
         Called with the node index as argument, it should return the activity
         value of a visit.
@@ -462,7 +495,9 @@ def parallel_march_with_capacity(d_view, neighbours, probabilities, sources, num
 
     Returns
     -------
-    An array of dimensions number of nodes N x number of time points T.
+    An array of dimensions number of nodes N x number of time points T that
+    records the activity at each node per time point. An array of size T that
+    measures the number of removed walkers.
 
     Warning
     -------
@@ -476,6 +511,7 @@ def parallel_march_with_capacity(d_view, neighbours, probabilities, sources, num
     length = len(sources)
     rand_int = numpy.random.randint
     visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
+    removed = numpy.zeros(time_points, dtype=int)
     sys.stdout.flush()
     # make available on remote kernels
     d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
@@ -510,14 +546,129 @@ def parallel_march_with_capacity(d_view, neighbours, probabilities, sources, num
                     [sources[rand_int(length)] for i in xrange(curr_num)],
                     block=False)
         for path in results:
+            # if transient > 0, the nodes visited in the transient are ignored
             for node in path[transient:]:
+                if curr_visits[node] >= capacity[node]:
+                    removed[time] += 1
+                    break
                 curr_visits[node] += assessor(node)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))
     sys.stdout.write("\n")
     sys.stdout.flush()
-    return visits
+    return (visits, removed)
+
+def buffered_parallel_march_with_capacity(d_view, neighbours, probabilities, sources,
+        num_walkers, time_points, steps, capacity, assessor=ConstantValue(),
+        transient=0, lb_view=None, seed=None):
+    """
+    Start a number of random walks on the given network for a number of time
+    points. Records the activity at visited nodes.
+
+    Parameters
+    ----------
+    d_view: DirectView
+        An IPython.parallel.DirectView instance.
+    neighbours: list of lists
+        Adjacency list structure as returned by prepare_uniform_walk.
+    probabilities: list of lists
+        Transition probabilities list structure as returned by
+        prepare_uniform_walk.
+    sources: list
+        List of valid starting node indices.
+    num_walkers: callable
+        A callable that returns an integer z >= 0.
+    time_points: int
+        Number of experiments to measure activity for.
+    steps: int
+        The maximum number of steps for each individual random walker.
+    capacity: dict
+        Map between node indices and their maximum capacity.
+    assessor: callable (optional)
+        Called with the node index as argument, it should return the activity
+        value of a visit.
+    transient: int (optional)
+        Cut-off the first transient steps of each random walk.
+    lb_view: LoadBalancedView (optional)
+        An IPython.parallel.LoadBalancedView instance which may have performance
+        advantages over a DirectView.
+    seed: (optional)
+        A valid seed for numpy.random that makes runs deterministic in
+        combination with using only a DirectView.
+
+    Returns
+    -------
+    An array of dimensions number of nodes N x number of time points T that
+    records the activity at each node per time point. An array of size T that
+    measures the backlog at each time point.
+
+    Warning
+    -------
+    The use of a seed for reproducible results can only work with a
+    ``DirectView``. Use of a ``LoadBalancedView`` will assign jobs to remote
+    kernels in unknown order.
+    """
+    time_points = int(time_points)
+    steps = int(steps)
+    transient = int(transient)
+    length = len(sources)
+    rand_int = numpy.random.randint
+    visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
+    backlog = numpy.zeros(time_points, dtype=int)
+    sys.stdout.flush()
+    # make available on remote kernels
+    d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
+        steps=steps), block=True)
+    # assign different but deterministic seeds to all remote engines
+    numpy.random.seed(seed)
+    remote_seeds = set()
+    while len(remote_seeds) < len(d_view):
+        remote_seeds.add(rand_int(sys.maxint))
+    d_view.scatter("seed", remote_seeds, block=True)
+    d_view.execute("import numpy", block=True)
+    d_view.execute("numpy.random.seed(seed[0])", block=True)
+    view = isinstance(lb_view, LoadBalancedView)
+    if view:
+        num_krnl = len(lb_view)
+    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.flush()
+    buffered = list()
+    for time in xrange(time_points):
+        curr_visits = visits[:, time]
+        curr_num = num_walkers()
+        if curr_num + len(buffered) == 0:
+            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.flush()
+            continue
+        source_nodes = [pair[0] for pair in buffered]
+        walk_length = [pair[1] for pair in buffered]
+        buffered = list()
+        source_nodes.extend(sources[rand_int(length)] for i in xrange(curr_num))
+        walk_length.extend(steps for i in xrange(curr_num))
+        if view:
+            size = max((curr_num - 1) // (num_krnl * 2), 1)
+            results = lb_view.map(limited_uniform_random_walker,
+                    source_nodes, walk_length,
+                    block=False, ordered=False, chunksize=size)
+        else:
+            results = d_view.map(uniform_random_walker,
+                    source_nodes, walk_length,
+                    block=False)
+        for path in results:
+            # if transient > 0, the nodes visited in the transient are ignored
+            for (i, node) in enumerate(path[transient:]):
+                if curr_visits[node] >= capacity[node]:
+                    buffered.append((node, len(path) - i + 1))
+                    backlog[time] += 1
+                    break
+                curr_visits[node] += assessor(node)
+        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        sys.stdout.flush()
+    sys.stdout.write("\r{0:.2%} complete".format(1.0))
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+    return (visits, backlog)
 
 def internal_dynamics_external_fluctuations(activity):
     """

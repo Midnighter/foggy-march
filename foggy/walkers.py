@@ -19,6 +19,14 @@ Random Walks on Networks
 """
 
 
+__all__ = ["UniformInterval", "ConstantValue", "DegreeDependentValue",
+        "compute_mu", "prepare_uniform_walk", "uniform_random_walker",
+        "limited_uniform_random_walker", "iterative_parallel_march",
+        "parallel_march", "deletory_parallel_march_with_capacity",
+        "buffered_parallel_march_with_capacity",
+        "internal_dynamics_external_fluctuations"]
+
+
 import sys
 import itertools
 import bisect
@@ -162,7 +170,7 @@ def compute_mu(alpha, nu=1.0):
     nu = float(nu)
     return (nu - (2.0 * alpha * nu)) / (2.0 * (alpha - 1.0))
 
-def prepare_uniform_walk(graph, weight=None):
+def prepare_uniform_walk(graph, node2id=None, weight=None):
     """
     Prepare data structures for a uniform random walk.
 
@@ -173,6 +181,8 @@ def prepare_uniform_walk(graph, weight=None):
     ----------
     graph: nx.(Di)Graph
         The underlying network.
+    node2id: dict
+        A mapping from nodes in graph to indices running from 0 to (N - 1).
     weight: hashable
         The keyword for edge data that should be used to weigh the propagation
         probability.
@@ -180,26 +190,28 @@ def prepare_uniform_walk(graph, weight=None):
     nodes = sorted(graph.nodes())
     if len(nodes) < 2:
         raise nx.NetworkXError("network is too small")
-    indices = dict(itertools.izip(nodes, itertools.count()))
-    probabilities = list()
-    neighbours = list()
-    for (i, node) in enumerate(nodes):
+    if node2id is None:
+        node2id = dict(itertools.izip(nodes, itertools.count()))
+    probabilities = range(len(nodes))
+    neighbours = range(len(nodes))
+    for node in nodes:
+        i = node2id[node]
         adj = graph[node]
         out_deg = len(adj)
         if out_deg == 0:
-            probabilities.append([])
-            neighbours.append([])
+            probabilities[i] = list()
+            neighbours[i] = list()
             continue
         prob = 0.0
-        probabilities.append(numpy.zeros(out_deg, dtype=float))
-        neighbours.append(numpy.zeros(out_deg, dtype=int))
+        probabilities[i] = numpy.zeros(out_deg, dtype=float)
+        neighbours[i] = numpy.zeros(out_deg, dtype=int)
         for (j, (nhbr, data)) in enumerate(adj.iteritems()):
-            neighbours[i][j] = indices[nhbr]
+            neighbours[i][j] = node2id[nhbr]
             prob += data.get(weight, 1.0)
             probabilities[i][j] = prob
         # prob is now the sum of all edge weights, normalise to unity
         probabilities[i] /= prob
-    return (probabilities, neighbours, indices)
+    return (probabilities, neighbours, node2id)
 
 @require(numpy, bisect)
 @interactive

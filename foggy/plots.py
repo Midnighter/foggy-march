@@ -24,18 +24,12 @@ __all__ = ["BREWER_SET1", "fluctuation_scaling", "fluctuation_scaling_fit",
         "internal_external_ratio"]
 
 
-import logging
-
 import numpy
 #import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 from itertools import izip
-from .miscellaneous import NullHandler
 
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.addHandler(NullHandler())
 
 BREWER_SET1 = ["#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33",
         "#A65628", "#F781BF", "#8DD3C7"]
@@ -78,7 +72,7 @@ def fluctuation_scaling(data, labels):
 #    if all(num > 1.0 for num in [x_min, x_max, y_min]):
 #        plt.plot([x_min, x_max], [y_min, numpy.sqrt(x_max - x_min) + y_min],
 #                color="black", linestyle="dashed")
-    plt.legend()
+    plt.legend(loc="best")
     plt.show()
 
 def fluctuation_scaling_fit(data, labels, loc_modifier=5.0):
@@ -129,7 +123,7 @@ def fluctuation_scaling_fit(data, labels, loc_modifier=5.0):
 #        plt.plot([glob_x_min, glob_x_max],
 #                [glob_y_min, numpy.sqrt((glob_x_max - glob_x_min) + glob_y_min)],
 #                color="black", linestyle="dashed")
-    plt.legend()
+    plt.legend(loc="best")
     plt.show()
 
 def internal_external_ratio(internal, external, num_bins=50):

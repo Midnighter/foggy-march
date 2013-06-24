@@ -8,12 +8,14 @@
 # <codecell>
 
 import os
+import sys
 import numpy
 import networkx as nx
 
 # <codecell>
 
-import walkers
+sys.path.insert(0, "..")
+import foggy
 
 # <codecell>
 
@@ -28,7 +30,7 @@ if not os.path.exists(filename):
 #    network = nx.fast_gnp_random_graph(int(1E03), 0.01)
     nx.write_gpickle(network, filename)
 else:
-    network = nx.write_gpickle(filename)
+    network = nx.read_gpickle(filename)
 
 if network.is_directed():
     print "directed network with:"
@@ -39,11 +41,13 @@ print "\t", network.size(), "links"
 
 # <codecell>
 
-# TODO: give prepare_uniform_walk an argument to supply a map
-(probs, nbrs, indices) = walkers.prepare_uniform_walk(network)
 filename = os.path.join(base_dir, "node2id.pkl")
 if not os.path.exists(filename):
+    (probs, nbrs, indices) = foggy.prepare_uniform_walk(network)
     nx.write_gpickle(indices, filename)
+else:
+    indices = nx.read_gpickle(filename)
+    (probs, nbrs, indices) = foggy.prepare_uniform_walk(network, node2id=indices)
 
 # <codecell>
 
@@ -60,7 +64,9 @@ lv = rc.load_balanced_view()
 
 # <codecell>
 
-dv.execute("import walkers", block=True);
+dv.execute("import sys", block=True);
+dv.execute("sys.path.insert(0, '..')", block=True);
+dv.execute("import foggy", block=True);
 dv.execute("import numpy", block=True);
 
 # <codecell>
@@ -74,16 +80,16 @@ dv.execute("import numpy", block=True);
 
 filename = os.path.join(base_dir, "uniform_random_walk.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network)),
-            100, len(network) * 10, lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network)),
+            100, len(network) * 3, lb_view=lv)
     numpy.save(filename, activity)
 
 # <codecell>
 
 filename = os.path.join(base_dir, "uniform_random_walk_cut_transient.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network)),
-            100, len(network) * 10, transient=1000, lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network)),
+            100, len(network) * 3, transient=len(network) / 2, lb_view=lv)
     numpy.save(filename, activity)
 
 # <markdowncell>
@@ -94,16 +100,16 @@ if not os.path.exists(filename):
 
 filename = os.path.join(base_dir, "varied_uniform_random_walk.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network), len(network) * 2),
-            100, len(network) * 10, lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network), len(network) * 2),
+            100, len(network) * 3, lb_view=lv)
     numpy.save(filename, activity)
 
 # <codecell>
 
 filename = os.path.join(base_dir, "varied_uniform_random_walk_cut_transient.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network), len(network) * 2),
-            100, len(network) * 10, transient=1000, lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network), len(network) * 2),
+            100, len(network) * 3, transient=len(network) / 2, lb_view=lv)
     numpy.save(filename, activity)
 
 # <markdowncell>
@@ -114,33 +120,33 @@ if not os.path.exists(filename):
 
 filename = os.path.join(base_dir, "uniform_random_walk_mu.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network)),
-            100, len(network) * 10, assessor=walkers.DegreeDependentValue(network, indices, mu=walkers.compute_mu(0.65)), lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network)),
+            100, len(network) * 3, assessor=foggy.DegreeDependentValue(network, indices, mu=foggy.compute_mu(0.65)), lb_view=lv)
     numpy.save(filename, activity)
 
 # <codecell>
 
 filename = os.path.join(base_dir, "uniform_random_walk_mu_cut_transient.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network)),
-            100, len(network) * 10, assessor=walkers.DegreeDependentValue(network, indices, mu=walkers.compute_mu(0.65)),
-            transient=1000, lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network)),
+            100, len(network) * 3, assessor=foggy.DegreeDependentValue(network, indices, mu=foggy.compute_mu(0.65)),
+            transient=len(network) / 2, lb_view=lv)
     numpy.save(filename, activity)
 
 # <codecell>
 
 filename = os.path.join(base_dir, "varied_uniform_random_walk_mu.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network), len(network) * 2),
-            100, len(network) * 10, assessor=walkers.DegreeDependentValue(network, indices, mu=walkers.compute_mu(0.65)), lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network), len(network) * 2),
+            100, len(network) * 3, assessor=foggy.DegreeDependentValue(network, indices, mu=foggy.compute_mu(0.65)), lb_view=lv)
     numpy.save(filename, activity)
 
 # <codecell>
 
 filename = os.path.join(base_dir, "varied_uniform_random_walk_mu_cut_transient.npy")
 if not os.path.exists(filename):
-    activity = walkers.parallel_march(dv, nbrs, probs, range(len(nbrs)), walkers.UniformInterval(len(network), len(network) * 2),
-            100, len(network) * 10, assessor=walkers.DegreeDependentValue(network, indices, mu=walkers.compute_mu(0.65)),
-            transient=1000, lb_view=lv)
+    activity = foggy.parallel_march(dv, nbrs, probs, range(len(nbrs)), foggy.UniformInterval(len(network), len(network) * 2),
+            100, len(network) * 3, assessor=foggy.DegreeDependentValue(network, indices, mu=foggy.compute_mu(0.65)),
+            transient=len(network) / 2, lb_view=lv)
     numpy.save(filename, activity)
 

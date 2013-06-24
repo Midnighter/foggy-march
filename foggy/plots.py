@@ -2,9 +2,9 @@
 
 
 """
-==================
-BioLogistics Plots
-==================
+======================
+Variance Scaling Plots
+======================
 
 :Author:
     Moritz Emanuel Beber

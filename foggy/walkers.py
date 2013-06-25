@@ -664,7 +664,7 @@ def buffered_parallel_march_with_capacity(d_view, neighbours, probabilities, sou
                     source_nodes, walk_length,
                     block=False, ordered=False, chunksize=size)
         else:
-            results = d_view.map(uniform_random_walker,
+            results = d_view.map(limited_uniform_random_walker,
                     source_nodes, walk_length,
                     block=False)
         for path in results:

@@ -523,7 +523,7 @@ def deletory_parallel_march_with_capacity(d_view, neighbours, probabilities, sou
     length = len(sources)
     rand_int = numpy.random.randint
     visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
-    removed = numpy.zeros(time_points, dtype=int)
+    removed = numpy.zeros(shape=(len(neighbours), time_points), dtype=int)
     sys.stdout.flush()
     # make available on remote kernels
     d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
@@ -561,7 +561,7 @@ def deletory_parallel_march_with_capacity(d_view, neighbours, probabilities, sou
             # if transient > 0, the nodes visited in the transient are ignored
             for node in path[transient:]:
                 if curr_visits[node] >= capacity[node]:
-                    removed[time] += 1
+                    removed[node, time] += 1
                     break
                 curr_visits[node] += assessor(node)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
@@ -627,7 +627,7 @@ def buffered_parallel_march_with_capacity(d_view, neighbours, probabilities, sou
     length = len(sources)
     rand_int = numpy.random.randint
     visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
-    backlog = numpy.zeros(time_points, dtype=int)
+    backlog = numpy.zeros(shape=(len(neighbours), time_points), dtype=int)
     sys.stdout.flush()
     # make available on remote kernels
     d_view.push(dict(neighbours=neighbours, probabilities=probabilities,
@@ -672,7 +672,7 @@ def buffered_parallel_march_with_capacity(d_view, neighbours, probabilities, sou
             for (i, node) in enumerate(path[transient:]):
                 if curr_visits[node] >= capacity[node]:
                     buffered.append((node, len(path) - i + 1))
-                    backlog[time] += 1
+                    backlog[node, time] += 1
                     break
                 curr_visits[node] += assessor(node)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))

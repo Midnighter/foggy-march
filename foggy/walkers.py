@@ -645,36 +645,56 @@ def buffered_parallel_march_with_capacity(d_view, neighbours, probabilities, sou
         num_krnl = len(lb_view)
     sys.stdout.write("\r{0:.2%} complete".format(0.0))
     sys.stdout.flush()
-    buffered = list()
+    old_buffer = list()
+    new_buffer = list()
     for time in xrange(time_points):
         curr_visits = visits[:, time]
         curr_num = num_walkers()
-        if curr_num + len(buffered) == 0:
+        if curr_num == 0:
+            old_buffer = new_buffer
+            new_buffer = list()
+            for path in old_buffer:
+                # no need to cut transient since the buffered paths have been cut
+                for (i, node) in enumerate(path):
+                    if curr_visits[node] >= capacity[node]:
+                        backlog[node, time] += 1
+                        break
+                    curr_visits[node] += assessor(node)
+                if i < len(path):
+                    new_buffer.append(path[i:])
             sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
             sys.stdout.flush()
             continue
-        source_nodes = [pair[0] for pair in buffered]
-        walk_length = [pair[1] for pair in buffered]
-        buffered = list()
-        source_nodes.extend(sources[rand_int(length)] for i in xrange(curr_num))
-        walk_length.extend(steps for i in xrange(curr_num))
         if view:
             size = max((curr_num - 1) // (num_krnl * 2), 1)
-            results = lb_view.map(limited_uniform_random_walker,
-                    source_nodes, walk_length,
+            results = lb_view.map(uniform_random_walker,
+                    [sources[rand_int(length)] for i in xrange(curr_num)],
                     block=False, ordered=False, chunksize=size)
         else:
-            results = d_view.map(limited_uniform_random_walker,
-                    source_nodes, walk_length,
+            results = d_view.map(uniform_random_walker,
+                    [sources[rand_int(length)] for i in xrange(curr_num)],
                     block=False)
-        for path in results:
-            # if transient > 0, the nodes visited in the transient are ignored
-            for (i, node) in enumerate(path[transient:]):
+        old_buffer = new_buffer
+        new_buffer = list()
+        for path in old_buffer:
+            # no need to cut transient since the buffered paths have been cut
+            for (i, node) in enumerate(path):
                 if curr_visits[node] >= capacity[node]:
-                    buffered.append((node, len(path) - i + 1))
                     backlog[node, time] += 1
                     break
                 curr_visits[node] += assessor(node)
+            if i < len(path):
+                new_buffer.append(path[i:])
+        for path in results:
+            path = path[transient:]
+            # if transient > 0, the nodes visited in the transient are ignored
+            for (i, node) in enumerate(path):
+                if curr_visits[node] >= capacity[node]:
+                    backlog[node, time] += 1
+                    break
+                curr_visits[node] += assessor(node)
+            if i < len(path):
+                new_buffer.append(path[i:])
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))

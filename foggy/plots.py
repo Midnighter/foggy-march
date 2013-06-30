@@ -25,10 +25,11 @@ __all__ = ["BREWER_SET1", "fluctuation_scaling", "fluctuation_scaling_fit",
 
 
 import numpy
-#import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 from itertools import izip
+
+from scipy.optimize import curve_fit
 
 
 BREWER_SET1 = ["#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33",
@@ -75,6 +76,9 @@ def fluctuation_scaling(data, labels):
     plt.legend(loc="best")
     plt.show()
 
+def _continuous_power_law(x, k, alpha, c):
+    return k * numpy.power(x, alpha) + c
+
 def fluctuation_scaling_fit(data, labels, loc_modifier=5.0):
     glob_x_min = numpy.inf
     glob_x_max = -numpy.inf
@@ -99,14 +103,12 @@ def fluctuation_scaling_fit(data, labels, loc_modifier=5.0):
         if y_min < glob_y_min:
             glob_y_min = y_min
         plt.scatter(x_loc, y_loc, label=label, color=colour)
-        x_log = numpy.log10(x_loc)
-        y_log = numpy.log10(y_loc)
-        (slope, r, rank, s) = numpy.linalg.lstsq(x_log[:, numpy.newaxis], y_log)
-        fit_y = numpy.power(x_loc, slope)
+        (popt, pcov) = curve_fit(_continuous_power_law, x_loc, y_loc)
+        fit_y = numpy.power(x_loc, popt[1])
 #       (slope, intercept, r, p, err) = stats.linregress(x_log, y_log)
 #       fit_y = numpy.power(x_loc, slope) * numpy.power(10.0, intercept)
         plt.plot(x_loc, fit_y, color=colour)
-        fits.append([x_max / 10.0, y_max / 10.0, slope, colour])
+        fits.append([x_max / loc_modifier, y_max / loc_modifier, popt[1], colour])
     for i in xrange(1, len(fits)):
         while any((items[1] / fits[i][1]) < loc_modifier for items in fits[0: i]):
             fits[i][1] /= loc_modifier

@@ -8,7 +8,7 @@ Outline
 
 A module for different types of random walks on any directed or undirected network.
 See the contained notebook for an example use. It implements random walker
-models presented in [\ 1_ - 5_] using IPython's parallel-processing. The module
+models presented in [\ 1_ - 4_] using IPython's parallel-processing. The module
 also provides functions to evaluate internal dynamics vs external fluctuations
 as defined in [\ 2_].
 
@@ -43,8 +43,4 @@ References
 .. [4] Eisler, Zoltán, and János Kertész.
        “Random Walks on Complex Networks with Inhomogeneous Impact.”
        *Phys. Rev. E* 71.5 (2005): 057104.
-.. [5] Ma, Qi et al.
-       “Current-reinforced Random Walks for Constructing Transport Networks.”
-       *Journal of The Royal Society Interface* 10.80 (2013): n. pag.
-
 

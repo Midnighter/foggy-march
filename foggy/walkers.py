@@ -466,7 +466,7 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
     sys.stdout.flush()
     return visits
 
-def deletory_parallel_march_with_capacity(d_view, neighbours, probabilities, sources,
+def deletory_parallel_march(d_view, neighbours, probabilities, sources,
         num_walkers, time_points, steps, capacity, assessor=ConstantValue(),
         transient=0, lb_view=None, seed=None):
     """
@@ -570,7 +570,7 @@ def deletory_parallel_march_with_capacity(d_view, neighbours, probabilities, sou
     sys.stdout.flush()
     return (visits, removed)
 
-def buffered_parallel_march_with_capacity(d_view, neighbours, probabilities, sources,
+def buffered_parallel_march(d_view, neighbours, probabilities, sources,
         num_walkers, time_points, steps, capacity, assessor=ConstantValue(),
         transient=0, lb_view=None, seed=None):
     """

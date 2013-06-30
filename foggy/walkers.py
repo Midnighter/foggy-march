@@ -22,9 +22,8 @@ Random Walks on Networks
 __all__ = ["UniformInterval", "ConstantValue", "DegreeDependentValue",
         "compute_mu", "prepare_uniform_walk", "uniform_random_walker",
         "limited_uniform_random_walker", "iterative_parallel_march",
-        "parallel_march", "deletory_parallel_march_with_capacity",
-        "buffered_parallel_march_with_capacity",
-        "internal_dynamics_external_fluctuations"]
+        "parallel_march", "deletory_parallel_march",
+        "buffered_parallel_march", "internal_dynamics_external_fluctuations"]
 
 
 import sys

@@ -5,6 +5,18 @@ library(plyr)
 # Utility -----------------------------------------------------------------
 
 
+add_label <- function(my.df, my.var, my.label)
+{
+    # add new label column to data frame
+    if (is.numeric(my.label)) {
+        my.df[[my.var]] <- rep(my.label, nrow(my.df))
+    }
+    else if (is.character(my.label)) {
+        my.df[[my.var]] <- factor(rep(0, nrow(my.df)), labels=my.label)
+    }
+    my.df
+}
+
 load_df <- function(my.path)
 {
     my.df <- read.table(my.path, header=TRUE, sep=",")

@@ -270,6 +270,27 @@ def limited_uniform_random_walker(node, max_steps=None):
         path.append(node)
     return path
 
+def clear_client(rc):
+    """
+    Particularly with older versions of IPython memory becomes a huge issue.
+
+    Frequent use of this function should alleviate the issue.
+    """
+    assert not rc.outstanding, "Can't clear a client with outstanding tasks!"
+    rc.results.clear()
+    rc.metadata.clear()
+    rc.history = list()
+    rc.session.digest_history.clear()
+
+def clear_view(view):
+    """
+    Particularly with older versions of IPython memory becomes a huge issue.
+
+    Frequent use of this function should alleviate the issue.
+    """
+    view.results.clear()
+    view.history = list()
+
 def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
         steps, assessor=ConstantValue(), transient=0, lb_view=None, seed=None):
     """
@@ -361,6 +382,10 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
         for path in results:
             for node in path[transient:]:
                 visits[node] += assessor(node)
+        # clear cache
+        clear_client(d_view.client)
+        clear_view(d_view)
+        clear_view(lb_view)
         # compute running average and variation
         subtraction = visits - mean_fluxes
         mean_fluxes += subtraction / time
@@ -459,6 +484,10 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
         for path in results:
             for node in path[transient:]:
                 curr_visits[node] += assessor(node)
+        # clear cache
+        clear_client(d_view.client)
+        clear_view(d_view)
+        clear_view(lb_view)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))
@@ -563,6 +592,10 @@ def deletory_parallel_march(d_view, neighbours, probabilities, sources,
                     removed[node, time] += 1
                     break
                 curr_visits[node] += assessor(node)
+        # clear cache
+        clear_client(d_view.client)
+        clear_view(d_view)
+        clear_view(lb_view)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))
@@ -694,6 +727,10 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
                 curr_visits[node] += assessor(node)
             if i < len(path):
                 new_buffer.append(path[i:])
+        # clear cache
+        clear_client(d_view.client)
+        clear_view(d_view)
+        clear_view(lb_view)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))
@@ -730,5 +767,5 @@ def internal_dynamics_external_fluctuations(activity):
         for t in xrange(activity.shape[1]):
             external[i, t] = fraction[i] * sum_elem[t]
             internal[i, t] = activity[i, t] - external[i, t]
-    return (internal.std(axis=1), external.std(axis=1))
+    return (internal.std(axis=1, ddof=1), external.std(axis=1, ddof=1))
 

@@ -29,6 +29,7 @@ __all__ = ["UniformInterval", "ConstantValue", "DegreeDependentValue",
 import sys
 import itertools
 import bisect
+
 import numpy
 import networkx as nx
 

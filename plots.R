@@ -79,6 +79,33 @@ plot_scaling <- function(my.df, my.legend)
     return(my.plot)
 }
 
+plot_capacity_dependence <- function(my.df)
+{
+    my.anno <- ddply(my.df, c("walk.type", "capacity_total"), summarise,
+                     total=sum(stopped))
+#     my.anno <- ddply(my.anno, "walk.type", summarise, total=total/max(total),
+#                      capacity_total=capacity_total)
+#     my.anno$total <- (my.anno$total - min(my.anno$total)) / (max(my.anno$total) - min(my.anno$total))
+    my.plot <- ggplot(my.anno, aes(x=capacity_total, y=total,
+                                   colour=walk.type, group=walk.type,
+                                   shape=walk.type))
+    my.plot <- my.plot + geom_line() + geom_point()
+    return(my.plot)
+}
+
+plot_capacity_exponent_dependence <- function(my.df)
+{
+    my.df <- with(my.df, my.df[is.finite(log10(mean)) & is.finite(log10(signal)),])
+    my.anno <- ddply(my.df, c("walk.type", "capacity"), fit_slope)
+    my.plot <- ggplot(my.anno, aes(x=capacity, y=slope,
+                                   ymin=slope - standard.error,
+                                   ymax=slope + standard.error,
+                                   colour=walk.type, group=walk.type,
+                                   shape=walk.type))
+    my.plot <- my.plot + geom_errorbar() + geom_point() + geom_line()
+    return(my.plot)
+}
+
 
 # Output ------------------------------------------------------------------
 

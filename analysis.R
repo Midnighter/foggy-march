@@ -17,14 +17,29 @@ add_label <- function(my.df, my.var, my.label)
     my.df
 }
 
-load_df <- function(my.path)
+transform_activity <- function(my.df)
 {
-    my.df <- read.table(my.path, header=TRUE, sep=",")
     my.df <- melt(my.df, measure.vars=c("external", "internal", "std"),
                   variable.name="type", value.name="signal")
     my.df$type <- factor(my.df$type, levels=c("std", "internal", "external"),
                          labels=c("Real", "Internal", "External"))
     return(my.df)
+}
+
+load_capacity <- function(my.path, my.files)
+{
+    my.res <- data.frame()
+    for (my.name in my.files) {
+        my.file <- file.path(my.path, paste(my.name, ".csv", sep=""))
+        if (!file.exists(my.file)) {
+            next
+        }
+        my.df <- read.table(my.file, header=TRUE, sep=",")
+#         my.df$capacity_total <- factor(my.df$capacity_total)
+        my.df <- add_label(my.df, "walk.type", my.name)
+        my.res <- rbind(my.res, my.df)
+    }
+    return(my.res)
 }
 
 x_pos <- function(x)

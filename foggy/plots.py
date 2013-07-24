@@ -45,75 +45,54 @@ def fluctuation_scaling(data, labels):
     labels: list
         For each pair in ``data`` one string.
     """
-    x_min = numpy.inf
-    x_max = -numpy.inf
-    y_min = numpy.inf
-    plt.xscale("log")
-    plt.yscale("log")
     for ((x_loc, y_loc), label, colour) in izip(data, labels, BREWER_SET1):
         mask = numpy.isfinite(x_loc) & (x_loc > 0.0) & numpy.isfinite(y_loc) & (y_loc > 0.0)
         x_loc = x_loc[mask]
         y_loc = y_loc[mask]
         if len(x_loc) == 0 or len(y_loc) == 0:
             continue
-        tmp = x_loc.min()
-        if tmp < x_min:
-            x_min = tmp
-        tmp = x_loc.max()
-        if tmp > x_max:
-            x_max = tmp
-        tmp = y_loc.min()
-        if tmp < y_min:
-            y_min = tmp
         plt.scatter(x_loc, y_loc, label=label, color=colour)
     plt.xlabel("$<f_{i}>$")
     plt.ylabel("$\\sigma_{i}$")
-#    if all(num > 0.0 for num in [x_min, x_max, y_min]):
-#        plt.plot([x_min, x_max], [y_min, (x_max - x_min) + y_min], color="black")
-#    if all(num > 1.0 for num in [x_min, x_max, y_min]):
-#        plt.plot([x_min, x_max], [y_min, numpy.sqrt(x_max - x_min) + y_min],
-#                color="black", linestyle="dashed")
-    plt.legend(loc="best")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.legend(loc="upper left")
     plt.show()
 
 def _continuous_power_law(x, k, alpha, c):
     return k * numpy.power(x, alpha) + c
 
-def fluctuation_scaling_fit(data, labels, loc_modifier=5.0):
-    glob_x_min = numpy.inf
+def fluctuation_scaling_fit(data, labels):
     glob_x_max = -numpy.inf
-    glob_y_min = numpy.inf
+    glob_y_max = -numpy.inf
     fits = list()
-    plt.xscale("log")
-    plt.yscale("log")
     for ((x_loc, y_loc), label, colour) in izip(data, labels, BREWER_SET1):
         mask = numpy.isfinite(x_loc) & (x_loc > 0.0) & numpy.isfinite(y_loc) & (y_loc > 0.0)
         x_loc = x_loc[mask]
         y_loc = y_loc[mask]
         if len(x_loc) == 0 or len(y_loc) == 0:
             continue
-        x_min = x_loc.min()
         x_max = x_loc.max()
-        y_min = y_loc.min()
         y_max = y_loc.max()
-        if x_min < glob_x_min:
-            glob_x_min = x_min
         if x_max > glob_x_max:
             glob_x_max = x_max
-        if y_min < glob_y_min:
-            glob_y_min = y_min
+        if y_max > glob_y_max:
+            glob_y_max = y_max
         plt.scatter(x_loc, y_loc, label=label, color=colour)
-        (popt, pcov) = curve_fit(_continuous_power_law, x_loc, y_loc)
-        fit_y = numpy.power(x_loc, popt[1])
+        try:
+            (popt, pcov) = curve_fit(_continuous_power_law, x_loc, y_loc)
+            fit_y = numpy.power(x_loc, popt[1])
 #       (slope, intercept, r, p, err) = stats.linregress(x_log, y_log)
 #       fit_y = numpy.power(x_loc, slope) * numpy.power(10.0, intercept)
-        plt.plot(x_loc, fit_y, color=colour)
-        fits.append([x_max / loc_modifier, y_max / loc_modifier, popt[1], colour])
-    for i in xrange(1, len(fits)):
-        while any((items[1] / fits[i][1]) < loc_modifier for items in fits[0: i]):
-            fits[i][1] /= loc_modifier
-    for (lab_x_loc, lab_y_loc, slope, colour) in fits:
-        plt.text(lab_x_loc, lab_y_loc, "$\\alpha = %.3G$" % slope, color=colour)
+            plt.plot(x_loc, fit_y, color=colour)
+            fits.append([popt[1], colour])
+        except RuntimeError:
+            continue
+    for (i, (slope, colour)) in enumerate(fits):
+        # need to make text right justified
+        plt.text(numpy.power(glob_x_max, 0.7),
+                numpy.power(glob_y_max, 0.1 * float(i + 1)),
+                "$\\alpha = %.3G$" % slope, color=colour)
 #       plt.text(lab_xloc, lab_yloc, "$\\alpha = %.3G$\n$R^{2} = %.3G$\n$p = %.3G$\ns.e.$= %.3G$" % (slope, numpy.power(r, 2.0), p, err))
     plt.xlabel("$<f_{i}>$")
     plt.ylabel("$\\sigma_{i}$")
@@ -125,7 +104,9 @@ def fluctuation_scaling_fit(data, labels, loc_modifier=5.0):
 #        plt.plot([glob_x_min, glob_x_max],
 #                [glob_y_min, numpy.sqrt((glob_x_max - glob_x_min) + glob_y_min)],
 #                color="black", linestyle="dashed")
-    plt.legend(loc="best")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.legend(loc="upper left")
     plt.show()
 
 def internal_external_ratio(internal, external, num_bins=50):

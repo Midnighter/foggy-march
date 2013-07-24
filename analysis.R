@@ -26,7 +26,7 @@ transform_activity <- function(my.df)
     return(my.df)
 }
 
-load_capacity <- function(my.path, my.files)
+load_capacity <- function(my.path, my.files, my.levels)
 {
     my.res <- data.frame()
     for (my.name in my.files) {
@@ -35,27 +35,10 @@ load_capacity <- function(my.path, my.files)
             next
         }
         my.df <- read.table(my.file, header=TRUE, sep=",")
-#         my.df$capacity_total <- factor(my.df$capacity_total)
-        my.df <- add_label(my.df, "walk.type", my.name)
+        my.df <- add_label(my.df, "walk.type", my.levels[my.name])
         my.res <- rbind(my.res, my.df)
     }
     return(my.res)
-}
-
-x_pos <- function(x)
-{
-    my.x <- log10(x)
-    my.max <- max(my.x)
-    my.pos <- my.max * 0.99
-    return(10 ^ my.pos)
-}
-
-y_pos <- function(x)
-{
-    my.x <- log10(x)
-    my.max <- max(my.x)
-    my.pos <- my.max * 0.8
-    return(10 ^ my.pos)
 }
 
 fit_slope <- function(my.df)
@@ -63,6 +46,9 @@ fit_slope <- function(my.df)
     my.fit <- summary(glm("signal ~ log(mean)", family=gaussian(link=log),
                           data=my.df))
     my.coef <- coefficients(my.fit)
+    if (dim(my.coef)[1] < 2) {
+        return(data.frame())
+    }
     return(data.frame(slope=my.coef["log(mean)", "Estimate"],
                       standard.error=my.coef["log(mean)", "Std. Error"],
                       p.value=my.coef["log(mean)", "Pr(>|t|)"],

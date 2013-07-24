@@ -21,10 +21,11 @@ Random Walks on Networks
 
 __all__ = ["UniformInterval", "ConstantValue", "DegreeDependentValue",
         "compute_mu", "prepare_uniform_walk", "uniform_random_walker",
-        "limited_uniform_random_walker", "iterative_parallel_march",
+        "iterative_parallel_march",
         "parallel_march", "deletory_parallel_march",
         "buffered_parallel_march", "internal_dynamics_external_fluctuations"]
 
+#        "limited_uniform_random_walker",
 
 import sys
 import itertools
@@ -241,35 +242,35 @@ def uniform_random_walker(node):
         path.append(node)
     return path
 
-@require(numpy, bisect)
-@interactive
-def limited_uniform_random_walker(node, max_steps=None):
-    """
-    Perform a single random walk on a network with a uniform probability of a
-    next step.
-
-    Parameters
-    ----------
-    """
-    # accessing globals `probabilities`, `neighbours`, and `steps` that were pushed before
-    local_probs = probabilities
-    local_nbrs = neighbours
-    if max_steps is None:
-        max_steps = steps
-    smpl = numpy.random.random_sample
-    choose = bisect.bisect_left
-    path = [node]
-    for s in xrange(max_steps):
-        nbrs = local_nbrs[node]
-        if len(nbrs) == 0:
-            break
-        draw = smpl()
-        # the nbrs list and probs list correspond to each other
-        # we use a binary search to find the index to the left of the
-        # probability and take that node
-        node = nbrs[choose(local_probs[node], draw)]
-        path.append(node)
-    return path
+#@require(numpy, bisect)
+#@interactive
+#def limited_uniform_random_walker(node, max_steps=None):
+#    """
+#    Perform a single random walk on a network with a uniform probability of a
+#    next step.
+#
+#    Parameters
+#    ----------
+#    """
+#    # accessing globals `probabilities`, `neighbours`, and `steps` that were pushed before
+#    local_probs = probabilities
+#    local_nbrs = neighbours
+#    if max_steps is None:
+#        max_steps = steps
+#    smpl = numpy.random.random_sample
+#    choose = bisect.bisect_left
+#    path = [node]
+#    for s in xrange(max_steps):
+#        nbrs = local_nbrs[node]
+#        if len(nbrs) == 0:
+#            break
+#        draw = smpl()
+#        # the nbrs list and probs list correspond to each other
+#        # we use a binary search to find the index to the left of the
+#        # probability and take that node
+#        node = nbrs[choose(local_probs[node], draw)]
+#        path.append(node)
+#    return path
 
 def clear_client(rc):
     """
@@ -385,8 +386,10 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
                 visits[node] += assessor(node)
         # clear cache
         clear_client(d_view.client)
-        clear_view(d_view)
-        clear_view(lb_view)
+        if view:
+            clear_view(lb_view)
+        else:
+            clear_view(d_view)
         # compute running average and variation
         subtraction = visits - mean_fluxes
         mean_fluxes += subtraction / time
@@ -487,8 +490,10 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
                 curr_visits[node] += assessor(node)
         # clear cache
         clear_client(d_view.client)
-        clear_view(d_view)
-        clear_view(lb_view)
+        if view:
+            clear_view(lb_view)
+        else:
+            clear_view(d_view)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))
@@ -595,8 +600,10 @@ def deletory_parallel_march(d_view, neighbours, probabilities, sources,
                 curr_visits[node] += assessor(node)
         # clear cache
         clear_client(d_view.client)
-        clear_view(d_view)
-        clear_view(lb_view)
+        if view:
+            clear_view(lb_view)
+        else:
+            clear_view(d_view)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))
@@ -691,10 +698,9 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
                 for (i, node) in enumerate(path):
                     if curr_visits[node] >= capacity[node]:
                         backlog[node, time] += 1
+                        new_buffer.append(path[i:])
                         break
                     curr_visits[node] += assessor(node)
-                if i < len(path):
-                    new_buffer.append(path[i:])
             sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
             sys.stdout.flush()
             continue
@@ -724,14 +730,15 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
             for (i, node) in enumerate(path):
                 if curr_visits[node] >= capacity[node]:
                     backlog[node, time] += 1
+                    new_buffer.append(path[i:])
                     break
                 curr_visits[node] += assessor(node)
-            if i < len(path):
-                new_buffer.append(path[i:])
         # clear cache
         clear_client(d_view.client)
-        clear_view(d_view)
-        clear_view(lb_view)
+        if view:
+            clear_view(lb_view)
+        else:
+            clear_view(d_view)
         sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:.2%} complete".format(1.0))

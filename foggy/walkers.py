@@ -360,8 +360,9 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
     view = isinstance(lb_view, LoadBalancedView)
     if view:
         num_krnl = len(lb_view)
-    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(0.0))
     sys.stdout.flush()
+    time_norm = float(time_points)
     for time in xrange(1, time_points + 1):
         visits.fill(0)
         curr_num = num_walkers()
@@ -369,7 +370,7 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
             subtraction = -mean_fluxes
             mean_fluxes += subtraction / time
             std_fluxes += subtraction * (-mean_fluxes)
-            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
             sys.stdout.flush()
             continue
         if view:
@@ -388,17 +389,18 @@ def iterative_parallel_march(d_view, neighbours, probabilities, sources, num_wal
         clear_client(d_view.client)
         if view:
             clear_view(lb_view)
-        else:
-            clear_view(d_view)
+        clear_view(d_view)
         # compute running average and variation
         subtraction = visits - mean_fluxes
         mean_fluxes += subtraction / time
         std_fluxes += subtraction * (visits - mean_fluxes)
-        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
         sys.stdout.flush()
     std_fluxes /= float(time - 1)
     numpy.sqrt(std_fluxes, std_fluxes)
+    sys.stdout.write("\r{0:7.2%} complete".format(1.0))
     sys.stdout.write("\n")
+    sys.stdout.flush()
     return (mean_fluxes, std_fluxes)
 
 def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time_points,
@@ -467,13 +469,14 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
     view = isinstance(lb_view, LoadBalancedView)
     if view:
         num_krnl = len(lb_view)
-    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(0.0))
     sys.stdout.flush()
+    time_norm = float(time_points)
     for time in xrange(time_points):
         curr_visits = visits[:, time]
         curr_num = num_walkers()
         if curr_num == 0:
-            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
             sys.stdout.flush()
             continue
         if view:
@@ -492,11 +495,10 @@ def parallel_march(d_view, neighbours, probabilities, sources, num_walkers, time
         clear_client(d_view.client)
         if view:
             clear_view(lb_view)
-        else:
-            clear_view(d_view)
-        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        clear_view(d_view)
+        sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
         sys.stdout.flush()
-    sys.stdout.write("\r{0:.2%} complete".format(1.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(1.0))
     sys.stdout.write("\n")
     sys.stdout.flush()
     return visits
@@ -573,13 +575,14 @@ def deletory_parallel_march(d_view, neighbours, probabilities, sources,
     view = isinstance(lb_view, LoadBalancedView)
     if view:
         num_krnl = len(lb_view)
-    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(0.0))
     sys.stdout.flush()
+    time_norm = float(time_points)
     for time in xrange(time_points):
         curr_visits = visits[:, time]
         curr_num = num_walkers()
         if curr_num == 0:
-            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
             sys.stdout.flush()
             continue
         if view:
@@ -602,11 +605,10 @@ def deletory_parallel_march(d_view, neighbours, probabilities, sources,
         clear_client(d_view.client)
         if view:
             clear_view(lb_view)
-        else:
-            clear_view(d_view)
-        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        clear_view(d_view)
+        sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
         sys.stdout.flush()
-    sys.stdout.write("\r{0:.2%} complete".format(1.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(1.0))
     sys.stdout.write("\n")
     sys.stdout.flush()
     return (visits, removed)
@@ -683,10 +685,11 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
     view = isinstance(lb_view, LoadBalancedView)
     if view:
         num_krnl = len(lb_view)
-    sys.stdout.write("\r{0:.2%} complete".format(0.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(0.0))
     sys.stdout.flush()
     old_buffer = list()
     new_buffer = list()
+    time_norm = float(time_points)
     for time in xrange(time_points):
         curr_visits = visits[:, time]
         curr_num = num_walkers()
@@ -701,7 +704,8 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
                         new_buffer.append(path[i:])
                         break
                     curr_visits[node] += assessor(node)
-            sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+            sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9,d}".format(time / time_norm,
+                len(new_buffer)))
             sys.stdout.flush()
             continue
         if view:
@@ -737,11 +741,11 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
         clear_client(d_view.client)
         if view:
             clear_view(lb_view)
-        else:
-            clear_view(d_view)
-        sys.stdout.write("\r{0:.2%} complete".format(time / float(time_points)))
+        clear_view(d_view)
+        sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9,d}".format(time / time_norm,
+            len(new_buffer)))
         sys.stdout.flush()
-    sys.stdout.write("\r{0:.2%} complete".format(1.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(1.0))
     sys.stdout.write("\n")
     sys.stdout.flush()
     return (visits, backlog)

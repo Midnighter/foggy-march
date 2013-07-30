@@ -60,7 +60,7 @@ plot_scaling <- function(my.df, my.legend, my.sep="type", my.col=my.brewer,
     my.plot <- my.plot + geom_abline(slope=1, colour="grey", linetype=1)
     my.plot <- my.plot + geom_abline(slope=1/2, colour="grey", linetype=2)
     # compute the slopes and create annotation data frame
-    my.anno <- ddply(my.df, my.sep, fit_slope)
+    my.anno <- ddply(my.df, my.sep, fit_slope, "signal ~ log(mean)")
     my.anno$text.x <- numeric(nrow(my.anno))
     my.anno$text.y <- numeric(nrow(my.anno))
     my.anno$text <- character(nrow(my.anno))
@@ -108,7 +108,7 @@ plot_capacity_dependence <- function(my.df, scale.values="actual")
 
 plot_capacity_exponent_dependence <- function(my.df)
 {
-    my.df <- with(my.df, my.df[is.finite(log10(mean)) & is.finite(log10(signal)),])
+    my.df <- with(my.df, my.df[is.finite(log10(mean)) & is.finite(log10(std)),])
     my.anno <- ddply(my.df, c("walk.type", "capacity_total"), fit_slope)
     my.plot <- ggplot(my.anno, aes(x=capacity_total, y=slope,
                                    ymin=slope - standard.error,

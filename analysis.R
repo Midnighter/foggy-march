@@ -41,9 +41,9 @@ load_capacity <- function(my.path, my.files, my.levels)
     return(my.res)
 }
 
-fit_slope <- function(my.df)
+fit_slope <- function(my.df, my.formula="std ~ log(mean)")
 {
-    my.fit <- summary(glm("signal ~ log(mean)", family=gaussian(link=log),
+    my.fit <- summary(glm(my.formula, family=gaussian(link=log),
                           data=my.df))
     my.coef <- coefficients(my.fit)
     if (dim(my.coef)[1] < 2) {

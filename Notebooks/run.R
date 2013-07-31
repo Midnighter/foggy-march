@@ -1,7 +1,7 @@
 source("../analysis.R")
 source("../plots.R")
 
-my.src <- "Tests"
+my.src <- "Data"
 my.out <- "Images"
 
 # pdf(file=paste(file.path(my.out, "all"), ".pdf", sep=""),

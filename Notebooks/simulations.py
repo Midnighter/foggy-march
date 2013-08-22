@@ -9,6 +9,8 @@
 
 import os
 import sys
+import uuid
+
 import numpy
 import networkx as nx
 
@@ -19,7 +21,7 @@ import foggy
 
 # <codecell>
 
-base_dir = "Tests"
+base_dir = "Data"
 if not os.path.exists(base_dir):
     os.makedirs(base_dir)
 
@@ -163,32 +165,34 @@ capacity += float(num_walkers * num_steps) / float(len(network))
 
 # <codecell>
 
-capacity_factors = [0.01, 0.1, 1.0, 10.0, 100.0]
+capacity_factors = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
 
-## <codecell>
-#
-#for k in capacity_factors:
-#    dynamic = capacity * k
-#    filename = os.path.join(base_dir,
-#            "deletory_uniform_random_walk_uniform_capacity_%d.npz" % int(dynamic.sum()))
-#    if not os.path.exists(filename):
-#        # adjustment for interesting observations
-#        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
-#                foggy.UniformInterval(num_walkers), time_points, num_steps, dynamic, lb_view=lv)
-#        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
-#
-## <codecell>
-#
-#for k in capacity_factors:
-#    dynamic = capacity * k
-#    filename = os.path.join(base_dir,
-#            "deletory_varied_uniform_random_walk_uniform_capacity_%d.npz" % int(dynamic.sum()))
-#    if not os.path.exists(filename):
-#        # adjustment for interesting observations
-#        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
-#                foggy.UniformInterval(num_walkers, 2 * num_walkers), time_points, num_steps,
-#                dynamic, lb_view=lv)
-#        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
+# <codecell>
+
+for k in capacity_factors:
+    dynamic = capacity * k
+    filename = os.path.join(base_dir,
+            "deletory_uniform_random_walk_uniform_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
+    if not os.path.exists(filename):
+        # adjustment for interesting observations
+        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
+                foggy.UniformInterval(num_walkers), time_points, num_steps, dynamic, lb_view=lv)
+        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
+
+# <codecell>
+
+for k in capacity_factors:
+    dynamic = capacity * k
+    filename = os.path.join(base_dir,
+            "deletory_varied_uniform_random_walk_uniform_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
+    if not os.path.exists(filename):
+        # adjustment for interesting observations
+        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
+                foggy.UniformInterval(num_walkers, 2 * num_walkers), time_points, num_steps,
+                dynamic, lb_view=lv)
+        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
 
 # <codecell>
 
@@ -197,7 +201,8 @@ for k in capacity_factors:
     dynamic = capacity * k
     print dynamic.sum()
     filename = os.path.join(base_dir,
-            "buffered_uniform_random_walk_uniform_capacity_%d.npz" % int(dynamic.sum()))
+            "buffered_uniform_random_walk_uniform_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
     if not os.path.exists(filename):
         # adjustment for interesting observations
         (activity, backlog) = foggy.buffered_parallel_march(dv, nbrs, probs, source_nodes,
@@ -211,7 +216,8 @@ for k in capacity_factors:
     dynamic = capacity * k
     print dynamic.sum()
     filename = os.path.join(base_dir,
-            "buffered_varied_uniform_random_walk_uniform_capacity_%d.npz" % int(dynamic.sum()))
+            "buffered_varied_uniform_random_walk_uniform_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
     if not os.path.exists(filename):
         (activity, backlog) = foggy.buffered_parallel_march(dv, nbrs, probs, source_nodes,
                 foggy.UniformInterval(num_walkers, 2 * num_walkers), time_points, num_steps,
@@ -224,28 +230,34 @@ capacity.fill(0.0) # not strictly necessary
 for (node, deg) in network.degree_iter():
     capacity[indices[node]] = float(deg) * 100.0
 
-## <codecell>
-#
-#for k in capacity_factors:
-#    dynamic = capacity * k
-#    filename = os.path.join(base_dir,
-#            "deletory_uniform_random_walk_degree_capacity_%d.npz" % int(dynamic.sum()))
-#    if not os.path.exists(filename):
-#        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
-#                foggy.UniformInterval(num_walkers), time_points, num_steps, dynamic, lb_view=lv)
-#        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
-#
-## <codecell>
-#
-#for k in capacity_factors:
-#    dynamic = capacity * k
-#    filename = os.path.join(base_dir,
-#            "deletory_varied_uniform_random_walk_degree_capacity_%d.npz" % int(dynamic.sum()))
-#    if not os.path.exists(filename):
-#        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
-#                foggy.UniformInterval(num_walkers, 2 * num_walkers), time_points, num_steps,
-#                dynamic, lb_view=lv)
-#        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
+# <codecell>
+
+capacity_factors = [0.01, 0.1, 1.0, 10.0, 100.0]
+
+# <codecell>
+
+for k in capacity_factors:
+    dynamic = capacity * k
+    filename = os.path.join(base_dir,
+            "deletory_uniform_random_walk_degree_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
+    if not os.path.exists(filename):
+        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
+                foggy.UniformInterval(num_walkers), time_points, num_steps, dynamic, lb_view=lv)
+        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
+
+# <codecell>
+
+for k in capacity_factors:
+    dynamic = capacity * k
+    filename = os.path.join(base_dir,
+            "deletory_varied_uniform_random_walk_degree_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
+    if not os.path.exists(filename):
+        (activity, removed) = foggy.deletory_parallel_march(dv, nbrs, probs, source_nodes,
+                foggy.UniformInterval(num_walkers, 2 * num_walkers), time_points, num_steps,
+                dynamic, lb_view=lv)
+        numpy.savez(filename, activity=activity, hits=removed, capacity=dynamic)
 
 # <codecell>
 
@@ -254,7 +266,8 @@ for k in capacity_factors:
     dynamic = capacity * k
     print dynamic.sum()
     filename = os.path.join(base_dir,
-            "buffered_uniform_random_walk_degree_capacity_%d.npz" % int(dynamic.sum()))
+            "buffered_uniform_random_walk_degree_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
     if not os.path.exists(filename):
         (activity, backlog) = foggy.buffered_parallel_march(dv, nbrs, probs, source_nodes,
                 foggy.UniformInterval(num_walkers), time_points, num_steps, dynamic, lb_view=lv)
@@ -267,7 +280,8 @@ for k in capacity_factors:
     dynamic = capacity * k
     print dynamic.sum()
     filename = os.path.join(base_dir,
-            "buffered_varied_uniform_random_walk_degree_capacity_%d.npz" % int(dynamic.sum()))
+            "buffered_varied_uniform_random_walk_degree_capacity_%d_%s.npz" %\
+            (int(dynamic.sum()), uuid.uuid1()))
     if not os.path.exists(filename):
         (activity, backlog) = foggy.buffered_parallel_march(dv, nbrs, probs, source_nodes,
                 foggy.UniformInterval(num_walkers, 2 * num_walkers), time_points, num_steps,

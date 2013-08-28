@@ -704,7 +704,7 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
                         new_buffer.append(path[i:])
                         break
                     curr_visits[node] += assessor(node)
-            sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9,d}".format(time / time_norm,
+            sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9d}".format(time / time_norm,
                 len(new_buffer)))
             sys.stdout.flush()
             continue
@@ -742,7 +742,7 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
         if view:
             clear_view(lb_view)
         clear_view(d_view)
-        sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9,d}".format(time / time_norm,
+        sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9d}".format(time / time_norm,
             len(new_buffer)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:7.2%} complete".format(1.0))

@@ -583,6 +583,8 @@ def deletory_parallel_march(d_view, neighbours, probabilities, sources,
         curr_num = num_walkers()
         if curr_num == 0:
             sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
+            sys.stdout.write("\r{0:7.2%} complete, removed: {1:12d}".format(time / time_norm,
+                    removed[:, time].sum()))
             sys.stdout.flush()
             continue
         if view:
@@ -607,6 +609,8 @@ def deletory_parallel_march(d_view, neighbours, probabilities, sources,
             clear_view(lb_view)
         clear_view(d_view)
         sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
+        sys.stdout.write("\r{0:7.2%} complete, removed: {1:12d}".format(time / time_norm,
+                removed[:, time].sum()))
         sys.stdout.flush()
     sys.stdout.write("\r{0:7.2%} complete".format(1.0))
     sys.stdout.write("\n")
@@ -704,7 +708,7 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
                         new_buffer.append(path[i:])
                         break
                     curr_visits[node] += assessor(node)
-            sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9d}".format(time / time_norm,
+            sys.stdout.write("\r{0:7.2%} complete, backlog: {1:12d}".format(time / time_norm,
                 len(new_buffer)))
             sys.stdout.flush()
             continue
@@ -742,7 +746,7 @@ def buffered_parallel_march(d_view, neighbours, probabilities, sources,
         if view:
             clear_view(lb_view)
         clear_view(d_view)
-        sys.stdout.write("\r{0:7.2%} complete, backlog: {1:9d}".format(time / time_norm,
+        sys.stdout.write("\r{0:7.2%} complete, backlog: {1:12d}".format(time / time_norm,
             len(new_buffer)))
         sys.stdout.flush()
     sys.stdout.write("\r{0:7.2%} complete".format(1.0))

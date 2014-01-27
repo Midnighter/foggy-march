@@ -24,6 +24,11 @@ Requirements
 .. _numpy: http://www.numpy.org/
 .. _IPython: http://ipython.org/
 
+Also take a look at the ``requirements.txt`` and ``opt-requirements.txt`` files
+that you can use with ``pip`` to install the necessary packages.
+
+    pip install -r <file>
+
 Authors
 -------
 
@@ -37,7 +42,7 @@ References
 .. [2] De Menezes, M. A., and A.-L. Barabási.
        “Separating Internal and External Dynamics of Complex Systems.”
        *Phys. Rev. Lett.* 93.6 (2004): 068701.
-.. [2] Eisler, Z. et al.
+.. [3] Eisler, Z. et al.
        “Multiscaling and Non-universality in Fluctuations of Driven Complex Systems.”
        *EPL (Europhysics Letters)* 69.4 (2005): 664. Print.
 .. [4] Eisler, Zoltán, and János Kertész.

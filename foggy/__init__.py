@@ -19,6 +19,9 @@ Random Walks on Networks
 """
 
 
+from .utils import *
+from .distributions import *
+from .visits import *
 from .walkers import *
 from .plots import *
 

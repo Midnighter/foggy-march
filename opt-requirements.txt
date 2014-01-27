@@ -1,0 +1,8 @@
+Cython==0.20
+numexpr==2.3
+pandas==0.13.0
+python-dateutil==2.2
+pytz==2013.9
+scipy==0.13.2
+six==1.5.2
+tables==3.0.0

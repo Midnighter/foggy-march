@@ -28,7 +28,6 @@ __all__ = ["prepare_uniform_walk", "prepare_directed_walk",
 
 import sys
 import itertools
-import bisect
 
 import numpy
 import networkx as nx
@@ -137,7 +136,7 @@ def prepare_directed_walk(graph, input_layer, output_layer, temperature,
                 probabilities[i][j] = numpy.exp(coord_diff / temperature)
     return (probabilities, neighbours, node2id)
 
-@require(numpy, bisect)
+@require(numpy)
 @interactive
 def uniform_random_walker(node):
     """
@@ -151,7 +150,7 @@ def uniform_random_walker(node):
     local_probs = probabilities
     local_nbrs = neighbours
     smpl = numpy.random.random_sample
-    choose = bisect.bisect_left
+    choose = numpy.searchsorted
     path = [node]
     for s in xrange(steps):
         nbrs = local_nbrs[node]
@@ -195,7 +194,7 @@ def uniform_random_walker(node):
 #        path.append(node)
 #    return path
 
-@require(numpy, bisect)
+@require(numpy)
 @interactive
 def directed_random_walker(node):
     """

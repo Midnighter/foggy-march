@@ -25,7 +25,7 @@ from setuptools import setup
 
 setup(
     name = "foggy",
-    version = "0.1",
+    version = "0.2",
     description = "simulate and analyse random walks on graphs",
     author = "Moritz Emanuel Beber",
     author_email = "moritz (dot) beber (at) gmail (dot) com",

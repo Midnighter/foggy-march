@@ -17,12 +17,21 @@ Requirements
 
 * networkx_
 * numpy_
-* IPython_ and 0MQ for parallel-processing. An older version that uses local
-  ``multiprocessing`` is available, too.
 
 .. _networkx: http://networkx.github.com/
 .. _numpy: http://www.numpy.org/
+
+Optional
+~~~~~~~~
+
+* IPython_ and 0MQ for parallel-processing. An older version that uses local
+  ``multiprocessing`` is available, too.
+* matplotlib_ for plotting
+* tables_ for storing results
+
 .. _IPython: http://ipython.org/
+.. _matplotlib: http://matplotlib.org/
+.. _tables: http://www.pytables.org/
 
 Also take a look at the ``requirements.txt`` and ``opt-requirements.txt`` files
 that you can use with ``pip`` to install the necessary packages.

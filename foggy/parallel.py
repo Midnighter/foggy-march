@@ -449,7 +449,7 @@ def deletory_march(d_view, neighbours, probabilities, sources,
         curr_num = num_walkers()
         if curr_num == 0:
             sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
-            sys.stdout.write("\r{0:7.2%} complete, removed: {1:12d}".format(time / time_norm,
+            sys.stdout.write("\r{0:7.2%} complete, current removed: {1:12d}".format(time / time_norm,
                     removed[:, time].sum()))
             sys.stdout.flush()
             continue
@@ -475,10 +475,10 @@ def deletory_march(d_view, neighbours, probabilities, sources,
             clear_view(lb_view)
         clear_view(d_view)
         sys.stdout.write("\r{0:7.2%} complete".format(time / time_norm))
-        sys.stdout.write("\r{0:7.2%} complete, removed: {1:12d}".format(time / time_norm,
+        sys.stdout.write("\r{0:7.2%} complete, current removed: {1:12d}".format(time / time_norm,
                 removed[:, time].sum()))
         sys.stdout.flush()
-    sys.stdout.write("\r{0:7.2%} complete".format(1.0))
+    sys.stdout.write("\r{0:7.2%} complete".format(1.0, removed[:, time].sum()))
     sys.stdout.write("\n")
     sys.stdout.flush()
     return (visits, removed)
@@ -540,7 +540,8 @@ def buffered_march(d_view, neighbours, probabilities, sources,
     transient = int(transient)
     length = len(sources)
     rand_int = numpy.random.randint
-    total_throughput = sum(capacity[node] for node in range(len(neighbours)))
+    total_throughput = int(numpy.ceil(sum(capacity[node] for node in
+        range(len(neighbours)))))
     visits = numpy.zeros(shape=(len(neighbours), time_points), dtype=float)
     backlog = numpy.zeros(shape=(len(neighbours), time_points), dtype=int)
     sys.stdout.flush()
@@ -578,7 +579,7 @@ def buffered_march(d_view, neighbours, probabilities, sources,
                         new_buffer.append(path[i:])
                         break
                     curr_visits[node] += assessor(node)
-            sys.stdout.write("\r{0:7.2%} complete, backlog: {1:12d}".format(time / time_norm,
+            sys.stdout.write("\r{0:7.2%} complete, current backlog: {1:12d}".format(time / time_norm,
                 len(new_buffer)))
             sys.stdout.flush()
             continue
@@ -616,10 +617,10 @@ def buffered_march(d_view, neighbours, probabilities, sources,
         if view:
             clear_view(lb_view)
         clear_view(d_view)
-        sys.stdout.write("\r{0:7.2%} complete, backlog: {1:12d}".format(time / time_norm,
+        sys.stdout.write("\r{0:7.2%} complete, current backlog: {1:12d}".format(time / time_norm,
             len(new_buffer)))
         sys.stdout.flush()
-    sys.stdout.write("\r{0:7.2%} complete".format(1.0))
+    sys.stdout.write("\r{0:7.2%} complete, current backlog: {1:12d}".format(1.0, len(new_buffer)))
     sys.stdout.write("\n")
     sys.stdout.flush()
     return (visits, backlog)

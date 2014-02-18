@@ -21,10 +21,11 @@ Variance Scaling Plots
 
 
 __all__ = ["BREWER_SET1", "fluctuation_scaling", "fluctuation_scaling_fit",
-        "internal_external_ratio"]
+        "correlation", "histogram"]
 
 
 import numpy
+import scipy.stats
 import matplotlib.pyplot as plt
 
 from itertools import izip
@@ -63,56 +64,51 @@ def _continuous_power_law(x, k, alpha, c):
     return k * numpy.power(x, alpha) + c
 
 def fluctuation_scaling_fit(data, labels):
-    glob_x_max = -numpy.inf
-    glob_y_max = -numpy.inf
-    fits = list()
     for ((x_loc, y_loc), label, colour) in izip(data, labels, BREWER_SET1):
         mask = numpy.isfinite(x_loc) & (x_loc > 0.0) & numpy.isfinite(y_loc) & (y_loc > 0.0)
         x_loc = x_loc[mask]
         y_loc = y_loc[mask]
         if len(x_loc) == 0 or len(y_loc) == 0:
             continue
-        x_max = x_loc.max()
-        y_max = y_loc.max()
-        if x_max > glob_x_max:
-            glob_x_max = x_max
-        if y_max > glob_y_max:
-            glob_y_max = y_max
-        plt.scatter(x_loc, y_loc, label=label, color=colour)
         try:
             (popt, pcov) = curve_fit(_continuous_power_law, x_loc, y_loc)
             fit_y = numpy.power(x_loc, popt[1])
+#            fit_y *= popt[0] # can cause OverflowError
 #       (slope, intercept, r, p, err) = stats.linregress(x_log, y_log)
 #       fit_y = numpy.power(x_loc, slope) * numpy.power(10.0, intercept)
             plt.plot(x_loc, fit_y, color=colour)
-            fits.append([popt[1], colour])
         except RuntimeError:
-            continue
-    for (i, (slope, colour)) in enumerate(fits):
-        # need to make text right justified
-        plt.text(numpy.power(glob_x_max, 0.7),
-                numpy.power(glob_y_max, 0.1 * float(i + 1)),
-                "$\\alpha = %.3G$" % slope, color=colour)
+            plt.scatter(x_loc, y_loc, label=label, color=colour)
+        else:
+            plt.scatter(x_loc, y_loc, label="%s $\\alpha = %.3G \\pm %.3G$" % (label,
+                popt[1], numpy.sqrt(pcov[1, 1])), color=colour)
 #       plt.text(lab_xloc, lab_yloc, "$\\alpha = %.3G$\n$R^{2} = %.3G$\n$p = %.3G$\ns.e.$= %.3G$" % (slope, numpy.power(r, 2.0), p, err))
     plt.xlabel("$<f_{i}>$")
     plt.ylabel("$\\sigma_{i}$")
-#    if all(num > 0.0 for num in [glob_x_min, glob_x_max, glob_y_min]):
-#        plt.plot([glob_x_min, glob_x_max],
-#                [glob_y_min, (glob_x_max - glob_x_min) + glob_y_min],
-#                color="black")
-#    if all(num > 1.0 for num in [glob_x_min, glob_x_max, glob_y_min]):
-#        plt.plot([glob_x_min, glob_x_max],
-#                [glob_y_min, numpy.sqrt((glob_x_max - glob_x_min) + glob_y_min)],
-#                color="black", linestyle="dashed")
     plt.xscale("log")
     plt.yscale("log")
     plt.legend(loc="upper left")
     plt.show()
 
-def internal_external_ratio(internal, external, num_bins=50):
-    eta = external / internal
-    plt.hist(eta[numpy.isfinite(eta)], bins=num_bins)
-    plt.xlabel("$\\eta = \\sigma^{(ext)} / \\sigma^{(int)}$")
-    plt.ylabel("$f(\\eta)$")
+def correlation(x, y, x_lbl="Degree $k$", y_lbl="$\\eta$"):
+    mask = numpy.isfinite(x) & numpy.isfinite(y)
+    x = x[mask]
+    y = y[mask]
+    pearson = scipy.stats.pearsonr(x, y)
+    spearman = scipy.stats.spearmanr(x, y)
+    plt.scatter(x, y, label="$r=%.3g$\n$p=%.3g$\n$\\rho=%.3g$\n$p=%.3g$" % (pearson[0], pearson[1], spearman[0], spearman[1]))
+    plt.xlabel(x_lbl)
+    plt.ylabel(y_lbl)
+    plt.legend(loc="best")
+    plt.show()
+
+def histogram(x, x_lbl="Speed $v$", y_lbl="$f(v)$", num_bins=100):
+    mask = numpy.isfinite(x)
+    if not mask.any():
+        return
+    x = x[mask]
+    plt.hist(x, bins=num_bins)
+    plt.xlabel(x_lbl)
+    plt.ylabel(y_lbl)
     plt.show()
 

@@ -1,0 +1,16 @@
+{
+    "walk_setup":"uniform",
+    "walk_type":"deletory",
+    "walker_dist":"uniform",
+    "visit_value":"constant",
+    "graphs_dir":["Data/Graphs/Test"],
+    "graphs_type":["test"],
+    "walker_factors":[1],
+    "steps_factors":[2],
+    "variation_factors": [0],
+    "time_points":100,
+    "transient":0,
+    "repetition":10,
+    "capacity":"uniform",
+    "capacity_factors":[1E-03, 1E-02, 1E-01, 1E00, 1E01, 1E02]
+}

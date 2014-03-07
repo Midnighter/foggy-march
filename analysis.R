@@ -41,17 +41,26 @@ load_capacity <- function(my.path, my.files, my.levels)
     return(my.res)
 }
 
-fit_slope <- function(my.df, my.formula="std ~ log(mean)")
+fit_slope <- function(my.df, my.formula="std ~ log(mean)", my.fam=gaussian(link=log))
 {
-    my.fit <- summary(glm(my.formula, family=gaussian(link=log),
-                          data=my.df))
+    my.fit <- summary(glm(my.formula, family=my.fam, data=my.df, start=c(1, 1)))
     my.coef <- coefficients(my.fit)
     if (dim(my.coef)[1] < 2) {
         return(data.frame())
     }
-    return(data.frame(slope=my.coef["log(mean)", "Estimate"],
-                      standard.error=my.coef["log(mean)", "Std. Error"],
-                      p.value=my.coef["log(mean)", "Pr(>|t|)"],
+    my.lbl <- attr(terms(as.formula(my.formula)), "term.labels")
+    return(data.frame(slope=my.coef[my.lbl, "Estimate"],
+                      standard.error=my.coef[my.lbl, "Std. Error"],
+                      p.value=my.coef[my.lbl, "Pr(>|t|)"],
                       intercept=my.coef["(Intercept)", "Estimate"],
                       int.error=my.coef["(Intercept)", "Std. Error"]))
+}
+
+all_slopes <- function(my.df, mean, signal, my.sep=c("time", "name"),
+                       my.formula="std_activity ~ log(mean_activity)",
+                       my.fam=gaussian(link=log))
+{
+    my.df <- my.df[is.finite(log10(my.df[[mean]])) & is.finite(log10(my.df[[signal]])),]
+    my.anno <- ddply(my.df, my.sep, fit_slope, my.formula, my.fam)
+    return(my.anno)
 }

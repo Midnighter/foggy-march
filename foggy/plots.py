@@ -96,11 +96,12 @@ def correlation(x, y, x_lbl="Degree $k$", y_lbl="$\\eta$"):
     y = y[mask]
     pearson = scipy.stats.pearsonr(x, y)
     spearman = scipy.stats.spearmanr(x, y)
-    plt.scatter(x, y, label="$r=%.3g$\n$p=%.3g$\n$\\rho=%.3g$\n$p=%.3g$" % (pearson[0], pearson[1], spearman[0], spearman[1]))
+    fig = plt.figure()
+    plt.plot(x, y, "x", label="$r=%.3g$\n$p=%.3g$\n$\\rho=%.3g$\n$p=%.3g$" % (pearson[0], pearson[1], spearman[0], spearman[1]))
     plt.xlabel(x_lbl)
     plt.ylabel(y_lbl)
     plt.legend(loc="best")
-    plt.show()
+    return fig
 
 def histogram(x, x_lbl="Speed $v$", y_lbl="$f(v)$", num_bins=100):
     mask = numpy.isfinite(x)

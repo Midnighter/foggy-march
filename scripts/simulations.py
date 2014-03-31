@@ -10,6 +10,7 @@ import codecs
 import cPickle as pickle
 
 import numpy
+import networkx as nx
 import beanstalkc
 
 import foggy
@@ -106,7 +107,11 @@ def remote_consumer(worker, host, port):
     jobq.generic_consumer(queue, worker, "STOP")
 
 def dummy_worker(**kw_args):
-#    LOGGER.debug(str(kw_args))
+    from IPython.config import Application
+    import logging
+    logger = Application.instance().log
+    logger.setLevel(logging.DEBUG)
+    logger.debug(str(kw_args))
     return "success"
 
 
@@ -156,7 +161,7 @@ class BeanMuncher(object):
             num_steps, visits, seed=None):
         job_descr = dict()
         job_descr["parameters"] = description
-        job_descr["worker"] = dummy_worker
+#        job_descr["worker"] = dummy_worker
         job_descr["simulation"] = self._type[config["walk_type"]]
         job_descr["neighbours"] = nbrs
         job_descr["probabilities"] = probs
@@ -174,7 +179,7 @@ class BeanMuncher(object):
         description["sim_id"] = str(uuid4()).replace("-", "")
         job_descr = dict()
         job_descr["parameters"] = description
-        job_descr["worker"] = dummy_worker
+#        job_descr["worker"] = dummy_worker
         job_descr["simulation"] = self._type[config["walk_type"]]
         job_descr["neighbours"] = nbrs
         job_descr["probabilities"] = probs
@@ -185,12 +190,12 @@ class BeanMuncher(object):
         job_descr["assessor"] = visits
         job_descr["transient"] = config["transient"]
         job_descr["seed"] = seed
-        capacity = self._capacity[config["capacity"]](net, indices, walkers, num_steps)
+        job_descr["capacity"] = self._capacity[config["capacity"]](net, indices, walkers, num_steps)
 
     _dispatch = {
-        "parallel": "_run",
-        "deletory": "_capacity_run",
-        "buffered": "_capacity_run"
+        "parallel": _run,
+        "deletory": _capacity_run,
+        "buffered": _capacity_run
     }
 
     def __init__(self, bean_queue, encoding="utf-8", **kw_args):
@@ -226,7 +231,7 @@ class BeanMuncher(object):
             for net in graphs:
                 description["graph_name"] = net.name
                 description["graph_type"] = net_type
-                graph_info(net)
+#                self.graph_info(net)
                 (probs, nbrs, indices) = setup(net)
                 for kw in config["walker_factors"]:
                     description["walker_factor"] = kw
@@ -288,7 +293,7 @@ def supply(args):
     queue.close()
 
 def consume(args):
-    rc = Client(profile=args.profile)
+    rc = Client(profile=args.profile, cluster_id=args.cluster_id)
     dv = rc.direct_view()
     LOGGER.debug("remote module import")
     dv.execute("import beanstalkc; import foggy; import jobq", block=True)
@@ -297,6 +302,7 @@ def consume(args):
         "host": args.host, "port": args.port}, block=True)
     LOGGER.debug("remote function call")
     dv.execute("consumer(worker, host, port)", block=False)
+#TODO: need to stop execution of remote functions, too
 
 def handle(args):
     queue = beanstalkc.Connection(host=args.host, port=args.port)
@@ -357,6 +363,8 @@ if __name__ == "__main__":
     parser_c = subparsers.add_parser("consume", help="consume jobs")
     parser_c.add_argument("--profile", dest="profile", default="default",
             help="IPython profile to connect to cluster (default: %(default)s)")
+    parser_c.add_argument("--cluster-id", dest="cluster_id", default=None,
+            help="IPython cluster-id to connect to (default: %(default)s)")
     parser_c.set_defaults(func=consume)
 # handle
     parser_h = subparsers.add_parser("handle", help="handle results")

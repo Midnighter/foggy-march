@@ -8,6 +8,7 @@ import argparse
 import json
 import codecs
 import cPickle as pickle
+import signal
 
 import numpy
 import networkx as nx
@@ -20,7 +21,7 @@ from itertools import izip
 from uuid import uuid4
 from glob import glob
 
-from IPython.parallel import Client, interactive
+from IPython.parallel import (Client, interactive)
 
 
 logging.basicConfig()
@@ -106,12 +107,9 @@ def remote_consumer(worker, host, port):
     queue.use("output")
     jobq.generic_consumer(queue, worker, "STOP")
 
+@interactive
 def dummy_worker(**kw_args):
-    from IPython.config import Application
-    import logging
-    logger = Application.instance().log
-    logger.setLevel(logging.DEBUG)
-    logger.debug(str(kw_args))
+    LOGGER.debug(str(kw_args))
     return "success"
 
 
@@ -161,7 +159,6 @@ class BeanMuncher(object):
             num_steps, visits, seed=None):
         job_descr = dict()
         job_descr["parameters"] = description
-#        job_descr["worker"] = dummy_worker
         job_descr["simulation"] = self._type[config["walk_type"]]
         job_descr["neighbours"] = nbrs
         job_descr["probabilities"] = probs
@@ -179,7 +176,6 @@ class BeanMuncher(object):
         description["sim_id"] = str(uuid4()).replace("-", "")
         job_descr = dict()
         job_descr["parameters"] = description
-#        job_descr["worker"] = dummy_worker
         job_descr["simulation"] = self._type[config["walk_type"]]
         job_descr["neighbours"] = nbrs
         job_descr["probabilities"] = probs
@@ -284,9 +280,9 @@ def supply(args):
     LOGGER.debug("watcher running")
     while watcher.is_alive():
         try:
-            time.sleep(0.1)
+            time.sleep(0.2)
         except (KeyboardInterrupt, SystemExit):
-            LOGGER.info("shutdown signal received")
+            LOGGER.critical("shutdown signal received")
             watcher.stop()
             break
     watcher.join()
@@ -295,14 +291,28 @@ def supply(args):
 def consume(args):
     rc = Client(profile=args.profile, cluster_id=args.cluster_id)
     dv = rc.direct_view()
+    pid_map = rc[:].apply_async(os.getpid).get_dict()
     LOGGER.debug("remote module import")
-    dv.execute("import beanstalkc; import foggy; import jobq", block=True)
+    dv.execute("import beanstalkc; import foggy; import jobq;"\
+            "import logging; from IPython.config import Application;"\
+            "LOGGER = Application.instance().log;"\
+            "LOGGER.setLevel(logging.DEBUG);", block=True)
     LOGGER.debug("pushing remote variables")
     dv.push({"consumer": remote_consumer, "worker": dummy_worker,
         "host": args.host, "port": args.port}, block=True)
     LOGGER.debug("remote function call")
     dv.execute("consumer(worker, host, port)", block=False)
-#TODO: need to stop execution of remote functions, too
+    while True:
+        try:
+            time.sleep(0.2)
+        except (KeyboardInterrupt, SystemExit):
+            LOGGER.critical("shutdown signal received")
+            for pid in pid_map.itervalues():
+                try:
+                    os.kill(pid, signal.SIGINT)
+                except OSError:
+                    LOGGER.warn("ipengine with pid '%d' no longer alive", pid)
+            break
 
 def handle(args):
     queue = beanstalkc.Connection(host=args.host, port=args.port)
@@ -315,8 +325,8 @@ def info(args):
 
     def queue_info(stats):
         LOGGER.info("All jobs: %d", stats["total-jobs"])
+        LOGGER.info("Jobs currently in queue: %d", stats["current-jobs-ready"])
         LOGGER.info("Jobs handled correctly: %d", stats["cmd-delete"])
-        LOGGER.info("Jobs in queue: %d", stats["current-jobs-ready"])
         LOGGER.info("Jobs failed: %d", stats["current-jobs-buried"])
 
     queue = beanstalkc.Connection(host=args.host, port=args.port)
